@@ -1,4 +1,8 @@
-# Boatrace Open API
+<p align="center">
+    <a href="https://github.com/boatraceopenapi/api">
+        <img src="assets/logos/boa_04.png" alt="Boatrace Open API">
+    </a>
+</p>
 
 [![v1](https://img.shields.io/badge/Boatrace_Open_API-v1-blue)](https://github.com/boatraceopenapi/api/tree/gh-pages/docs/v1)
 [![license](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -55,7 +59,7 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 
 レスポンスの JSON 構造・各フィールドの詳細については、スキーマドキュメントを参照してください。
 
-- [docs/v1/SCHEMA.md](docs/v1/SCHEMA.md)
+- [docs/v1/schema.md](docs/v1/schema.md)
 
 ## 🧩 サンプル
 
@@ -66,7 +70,7 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 
 ### コードサンプル
 
-各言語でのデータ取得・パース例は [docs/v1/EXAMPLE.md](docs/v1/EXAMPLE.md) を参照してください。
+各言語でのデータ取得・パース例は [docs/v1/example.md](docs/v1/example.md) を参照してください。
 
 ## 🔍 turnmark/api との違い
 
