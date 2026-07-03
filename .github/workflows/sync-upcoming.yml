@@ -32,6 +32,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Get Composer Cache Directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer Packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-php${{ matrix.php-version }}-composer-${{ hashFiles('**/composer.json') }}
+          restore-keys: |
+            ${{ runner.os }}-php${{ matrix.php-version }}-composer-
+
       - name: Install Dependencies (without Scraper)
         run: |
           composer remove turnmark/scraper --no-update || true
