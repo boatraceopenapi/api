@@ -1,11 +1,11 @@
 # レスポンススキーマ (v1)
 
-> 📅 対応期間: 2026年05月01日以降
+> 📅 対応期間: 2026年07月01日以降
 
 ## エンドポイント
 
 ```
-https://turnmark.github.io/api/v1/YYYY/YYYYMMDD.json
+https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 ```
 
 ## `_source` フィールドについて
