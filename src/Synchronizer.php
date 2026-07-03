@@ -27,7 +27,7 @@ final class Synchronizer
     private const string VERSION = 'v1';
 
     /**
-     * @var list<non-empty-string>
+     * @var non-empty-list<non-empty-string>
      */
     private const array SUPPORTED_VERSIONS = ['v1'];
 
