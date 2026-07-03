@@ -19,6 +19,11 @@ final class Synchronizer
     /**
      * @var non-empty-string
      */
+    private const string TIMEZONE = 'Asia/Tokyo';
+
+    /**
+     * @var non-empty-string
+     */
     private const string VERSION = 'v1';
 
     /**
@@ -34,11 +39,13 @@ final class Synchronizer
      */
     public static function sync(DateTimeInterface|string $date = 'today', string $version = self::VERSION): void
     {
+        date_default_timezone_set(self::TIMEZONE);
+
         $startedAt = microtime(true);
 
         self::assertSupportedVersion($version);
 
-        $date = Carbon::parse($date, 'Asia/Tokyo');
+        $date = Carbon::parse($date, self::TIMEZONE);
         $dateYmd = $date->format('Ymd');
 
         ActionsLogger::startGroup("Synchronizer::sync [{$dateYmd} / {$version}]");
@@ -133,11 +140,13 @@ final class Synchronizer
      */
     public static function syncUpcoming(DateTimeInterface|string $date = 'today', string $version = self::VERSION): void
     {
+        date_default_timezone_set(self::TIMEZONE);
+
         $startedAt = microtime(true);
 
         self::assertSupportedVersion($version);
 
-        $date = Carbon::parse($date, 'Asia/Tokyo');
+        $date = Carbon::parse($date, self::TIMEZONE);
         $dateYmd = $date->format('Ymd');
 
         ActionsLogger::startGroup("Synchronizer::syncUpcoming [{$dateYmd} / {$version}]");
@@ -268,9 +277,9 @@ final class Synchronizer
      */
     private static function isWithinOneHour(string $closedAt): bool
     {
-        return Carbon::parse($closedAt)->between(
-            Carbon::now()->subHour(),
-            Carbon::now()->addHour(),
+        return Carbon::parse($closedAt, self::TIMEZONE)->between(
+            Carbon::now(self::TIMEZONE)->subHour(),
+            Carbon::now(self::TIMEZONE)->addHour(),
         );
     }
 
@@ -284,7 +293,7 @@ final class Synchronizer
     {
         Storage::save(self::resolvePath($date, $version), $payload);
 
-        if (Carbon::parse($date)->isToday()) {
+        if (Carbon::parse($date, self::TIMEZONE)->isToday()) {
             Storage::save(self::resolveTodayPath($version), $payload);
         }
     }
