@@ -13,7 +13,7 @@
 >   BOATRACE 公式サイトおよび関連団体とは一切関係ありません。
 >
 > - 🕒 **データはリアルタイムではありません。**
->   GitHub Actions による定期更新を行っており、**当日までのデータ**を提供しています。更新スケジュールは `sync-upcoming.yml` を参照してください。
+>   GitHub Actions による約 5 分間隔の定期更新を行っています。リアルタイム配信ではないため、最新の情報が反映されるまで数分程度の遅れが生じる場合があります。
 >
 > - 📊 **データの正確性・完全性は保証していません。**
 >   収集・変換の都合により、欠損や誤りが含まれる可能性があります。
@@ -54,6 +54,8 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 
 - 2026年07月01日のデータ
   - [https://boatraceopenapi.github.io/api/v1/2026/20260701.json](https://boatraceopenapi.github.io/api/v1/2026/20260701.json)
+- 当日のデータ
+  - [https://boatraceopenapi.github.io/api/v1/today.json](https://boatraceopenapi.github.io/api/v1/today.json)
 
 ### コードサンプル
 
