@@ -1,0 +1,77 @@
+name: Sync Upcoming
+
+on:
+  schedule:
+    - cron: '*/5 8-23 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: cron-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  deploy-v1:
+    name: Deploy v1 on PHP ${{ matrix.php-version }} (Ubuntu 24.04)
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        php-version:
+          - '8.5'
+    steps:
+      - name: Setup PHP ${{ matrix.php-version }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install Dependencies (without Scraper)
+        run: |
+          composer remove turnmark/scraper --no-update || true
+          composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Require Scraper ^0.3
+        run: |
+          composer require turnmark/scraper:^0.3 --no-update
+          composer update turnmark/scraper --with-dependencies
+          composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Sync JSON
+        run: php bin/sync-upcoming.php v1
+
+      - name: Deploy JSON
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          FILES=$(
+            {
+              git ls-files -m -- 'docs/v1' | grep '\.json$'
+              git diff --cached --name-only --diff-filter=AM -- 'docs/v1' | grep '\.json$'
+              git ls-files --others --exclude-standard -- 'docs/v1' | grep '\.json$'
+            } | sort -u
+          )
+
+          if [ -z "$FILES" ]; then
+            echo "No JSON changes in docs/v1 to commit."
+            exit 0
+          fi
+
+          git pull --rebase --autostash
+
+          echo "$FILES" | xargs -d '\n' git add --
+
+          git commit -m "chore: deploy JSON files to docs/v1 [skip ci]" || {
+            echo "Nothing to commit."
+            exit 0
+          }
+
+          git push origin HEAD || (git pull --rebase --autostash && git push origin HEAD)

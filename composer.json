@@ -1,0 +1,49 @@
+{
+    "name": "boa/api",
+    "description": "Boatrace Open API",
+    "license": "MIT",
+    "type": "library",
+    "keywords": [
+        "boatrace",
+        "library"
+    ],
+    "authors": [
+        {
+            "name": "shimomo",
+            "email": "boa@shimomo.net"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/boatraceopenapi/api/issues",
+        "source": "https://github.com/boatraceopenapi/api"
+    },
+    "require": {
+        "php": "^8.5",
+        "nesbot/carbon": "^3.8.4",
+        "turnmark/scraper": "^0.3"
+    },
+    "require-dev": {
+        "ergebnis/composer-normalize": "^2.52",
+        "phpunit/phpunit": "^13.0",
+        "vimeo/psalm": "^6.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "BOA\\API\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "BOA\\API\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "ergebnis/composer-normalize": true
+        }
+    },
+    "scripts": {
+        "test": "phpunit"
+    },
+    "$schema": "https://getcomposer.org/schema.json"
+}

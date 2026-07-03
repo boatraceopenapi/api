@@ -1,0 +1,28 @@
+name: Keepalive
+
+on:
+  schedule:
+    - cron: '0 0 1 * *'
+  workflow_dispatch:
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: false
+
+permissions:
+  actions: write
+
+jobs:
+  keepalive:
+    name: Keepalive  (Ubuntu 24.04)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Re-enable Workflows
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow enable audit.yml --repo $GITHUB_REPOSITORY
+          gh workflow enable keepalive.yml --repo $GITHUB_REPOSITORY
+          gh workflow enable psalm.yml --repo $GITHUB_REPOSITORY
+          gh workflow enable scrape.yml --repo $GITHUB_REPOSITORY
+          gh workflow enable test.yml --repo $GITHUB_REPOSITORY
