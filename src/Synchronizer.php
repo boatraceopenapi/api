@@ -259,7 +259,7 @@ final class Synchronizer
         $program['preview'] = self::normalizeObject($preview, ['racers']);
         $program['result'] = self::normalizeObject($result, ['racers']);
 
-        return $program;
+        return self::normalizeObject($program, ['preview', 'result']);
     }
 
     /**
