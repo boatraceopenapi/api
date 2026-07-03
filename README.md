@@ -1,9 +1,16 @@
 # Boatrace Open API
 
-[![pages-build-deployment](https://github.com/boatraceopenapi/api/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/boatraceopenapi/api/actions/workflows/pages/pages-build-deployment)
-[![sync](https://github.com/boatraceopenapi/api/actions/workflows/sync.yml/badge.svg)](https://github.com/boatraceopenapi/api/actions/workflows/sync.yml)
-[![license](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![v1](https://img.shields.io/badge/Boatrace_Open_API-v1-blue)](https://github.com/boatraceopenapi/api/tree/gh-pages/docs/v1)
+[![license](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+[![pages-build-deployment](https://github.com/boatraceopenapi/api/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/boatraceopenapi/api/actions/workflows/pages/pages-build-deployment)
+[![test](https://github.com/boatraceopenapi/api/actions/workflows/test.yml/badge.svg)](https://github.com/boatraceopenapi/api/actions/workflows/test.yml)
+[![psalm](https://github.com/boatraceopenapi/api/actions/workflows/psalm.yml/badge.svg)](https://github.com/boatraceopenapi/api/actions/workflows/psalm.yml)
+[![audit](https://github.com/boatraceopenapi/api/actions/workflows/audit.yml/badge.svg)](https://github.com/boatraceopenapi/api/actions/workflows/audit.yml)
+[![sync](https://github.com/boatraceopenapi/api/actions/workflows/sync.yml/badge.svg)](https://github.com/boatraceopenapi/api/actions/workflows/sync.yml)
+[![sync-upcoming](https://github.com/boatraceopenapi/api/actions/workflows/sync-upcoming.yml/badge.svg)](https://github.com/boatraceopenapi/api/actions/workflows/sync-upcoming.yml)
+[![keepalive](https://github.com/boatraceopenapi/api/actions/workflows/keepalive.yml/badge.svg)](https://github.com/boatraceopenapi/api/actions/workflows/keepalive.yml)
+[![dependabot-updates](https://github.com/boatraceopenapi/api/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/boatraceopenapi/api/actions/workflows/dependabot/dependabot-updates)
 
 ## ⚠️ 注意事項
 
@@ -13,7 +20,7 @@
 >   BOATRACE 公式サイトおよび関連団体とは一切関係ありません。
 >
 > - 🕒 **データはリアルタイムではありません。**
->   GitHub Actions による約 5 分間隔の定期更新を行っています。リアルタイム配信ではないため、最新の情報が反映されるまで数分程度の遅れが生じる場合があります。
+>   GitHub Actions による約 3 分間隔の定期更新を行っています。リアルタイム配信ではないため、最新の情報が反映されるまで数分程度の遅れが生じる場合があります。
 >
 > - 📊 **データの正確性・完全性は保証していません。**
 >   収集・変換の都合により、欠損や誤りが含まれる可能性があります。
