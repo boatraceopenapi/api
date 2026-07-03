@@ -180,7 +180,7 @@ final class Synchronizer
                     /** @var ?non-empty-string $closedAt */
                     $closedAt = $race['closed_at'] ?? null;
 
-                    if ($closedAt === null || !self::isWithinOneHour($closedAt)) {
+                    if ($closedAt === null || !self::isWithinFifteenMinutes($closedAt)) {
                         $skippedCount++;
 
                         continue;
@@ -275,11 +275,11 @@ final class Synchronizer
      * @param non-empty-string $closedAt
      * @return bool
      */
-    private static function isWithinOneHour(string $closedAt): bool
+    private static function isWithinFifteenMinutes(string $closedAt): bool
     {
         return Carbon::parse($closedAt, self::TIMEZONE)->between(
-            Carbon::now(self::TIMEZONE)->subHour(),
-            Carbon::now(self::TIMEZONE)->addHour(),
+            Carbon::now(self::TIMEZONE)->subMinutes(15),
+            Carbon::now(self::TIMEZONE)->addMinutes(15),
         );
     }
 
