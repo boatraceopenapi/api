@@ -54,6 +54,8 @@ final class Synchronizer
         try {
             $payload = ['programs' => []];
 
+            Scraper::setMinCallIntervalSeconds(1.0);
+
             try {
                 $programBulk = Scraper::scrapeProgramBulk($date);
             } catch (ValueError $exception) {
