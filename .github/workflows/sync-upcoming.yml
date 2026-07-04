@@ -59,9 +59,9 @@ jobs:
           composer remove turnmark/scraper --no-update || true
           composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Require scraper ^0.3
+      - name: Require scraper ^0.4
         run: |
-          composer require turnmark/scraper:^0.3 --no-update
+          composer require turnmark/scraper:^0.4 --no-update
           composer update turnmark/scraper --with-dependencies
           composer install --prefer-dist --no-interaction --no-progress
 
