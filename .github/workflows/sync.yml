@@ -26,16 +26,16 @@ jobs:
         with:
           php-version: ${{ matrix.php-version }}
 
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Get Composer Cache Directory
+      - name: Get composer cache directory
         id: composer-cache
         run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
 
-      - name: Cache Composer Packages
+      - name: Cache composer packages
         uses: actions/cache@v4
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
@@ -43,27 +43,29 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-php${{ matrix.php-version }}-composer-
 
-      - name: Install Dependencies (without Scraper)
+      - name: Install dependencies (without scraper)
         run: |
           composer remove turnmark/scraper --no-update || true
           composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Require Scraper ^0.3
+      - name: Require scraper ^0.3
         run: |
           composer require turnmark/scraper:^0.3 --no-update
           composer update turnmark/scraper --with-dependencies
           composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Sync JSON
-        run: php bin/sync.php v1
-
-      - name: Deploy JSON
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Sync with remote before generating files
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
 
+      - name: Sync JSON
+        run: php bin/sync.php v1
+
+      - name: Validate generated JSON
+        run: |
+          set -e
           FILES=$(
             {
               git ls-files -m -- 'docs/v1' | grep '\.json$'
@@ -73,17 +75,37 @@ jobs:
           )
 
           if [ -z "$FILES" ]; then
-            echo "No JSON changes in docs/v1 to commit."
+            echo "No JSON changes in docs/v1."
+            echo "files_changed=false" >> "$GITHUB_ENV"
             exit 0
           fi
 
-          git pull --rebase --autostash
+          echo "files_changed=true" >> "$GITHUB_ENV"
+          echo "$FILES" > /tmp/changed_files.txt
 
-          echo "$FILES" | xargs -d '\n' git add --
+          if echo "$FILES" | xargs grep -l '^<<<<<<<\|^=======$\|^>>>>>>>' 2>/dev/null; then
+            echo "::error::merge conflict markers found in generated JSON"
+            exit 1
+          fi
+
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            if ! jq empty "$f" 2>/dev/null; then
+              echo "::error::invalid JSON: $f"
+              exit 1
+            fi
+          done < /tmp/changed_files.txt
+
+      - name: Deploy JSON
+        if: env.files_changed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git add $(cat /tmp/changed_files.txt)
 
           git commit -m "chore: deploy JSON files to docs/v1 [skip ci]" || {
             echo "Nothing to commit."
             exit 0
           }
 
-          git push origin HEAD || (git pull --rebase --autostash && git push origin HEAD)
+          git push origin HEAD || (git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin HEAD)
