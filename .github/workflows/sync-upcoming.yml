@@ -11,8 +11,6 @@ concurrency:
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   sync-and-commit:
@@ -58,16 +56,16 @@ jobs:
           composer update turnmark/scraper --with-dependencies
           composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Sync with remote before generating files
+      - name: Sync with remote JSON files
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git pull --rebase origin "${GITHUB_REF_NAME}"
 
-      - name: Sync JSON
+      - name: Sync JSON files
         run: php bin/sync-upcoming.php v1
 
-      - name: Validate generated JSON
+      - name: Validate JSON files
         id: validate
         run: |
           set -e
@@ -101,7 +99,7 @@ jobs:
             fi
           done < /tmp/changed_files.txt
 
-      - name: Deploy JSON
+      - name: Deploy JSON files
         if: steps.validate.outputs.files_changed == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -114,32 +112,3 @@ jobs:
           }
 
           git push origin HEAD || (git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin HEAD)
-
-  deploy-pages:
-    name: Deploy to pages (Ubuntu 24.04)
-    needs: sync-and-commit
-    if: needs.sync-and-commit.outputs.files_changed == 'true'
-    runs-on: ubuntu-24.04
-    concurrency:
-      group: pages
-      cancel-in-progress: false
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ github.ref_name }}
-
-      - name: Setup pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: docs
-
-      - name: Deploy to pages
-        id: deployment
-        uses: actions/deploy-pages@v4
