@@ -205,7 +205,8 @@ final class Synchronizer
                             "preview scrape failed: stadium={$stadiumNumber} race={$raceNumber} closed_at={$closedAt} continuing without preview: {$exception->getMessage()}"
                         );
 
-                        $preview = [];
+                        /** @var array<non-empty-string, mixed> $preview */
+                        $preview = $race['preview'];
                     }
 
                     try {
@@ -215,7 +216,8 @@ final class Synchronizer
                             "result scrape failed: stadium={$stadiumNumber} race={$raceNumber} closed_at={$closedAt} continuing without result: {$exception->getMessage()}"
                         );
 
-                        $result = [];
+                        /** @var array<non-empty-string, mixed> $result */
+                        $result = $race['result'];
                     }
 
                     $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber]
