@@ -7,7 +7,7 @@
 [![v1](https://img.shields.io/badge/Boatrace_Open_API-v1-blue)](https://github.com/boatraceopenapi/api/tree/gh-pages/docs/v1)
 [![license](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-[![pages-build-deployment](https://github.com/boatraceopenapi/api/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/boatraceopenapi/api/actions/workflows/pages/pages-build-deployment)
+[![deploy-pages](https://github.com/boatraceopenapi/api/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/boatraceopenapi/api/actions/workflows/deploy-pages.yml)
 [![test](https://github.com/boatraceopenapi/api/actions/workflows/test.yml/badge.svg)](https://github.com/boatraceopenapi/api/actions/workflows/test.yml)
 [![psalm](https://github.com/boatraceopenapi/api/actions/workflows/psalm.yml/badge.svg)](https://github.com/boatraceopenapi/api/actions/workflows/psalm.yml)
 [![audit](https://github.com/boatraceopenapi/api/actions/workflows/audit.yml/badge.svg)](https://github.com/boatraceopenapi/api/actions/workflows/audit.yml)
