@@ -12,6 +12,9 @@ concurrency:
 permissions:
   contents: write
 
+env:
+  TARGET_BRANCH: gh-pages
+
 jobs:
   sync-and-commit:
     name: Sync and commit on PHP ${{ matrix.php-version }} (Ubuntu 24.04)
@@ -20,8 +23,6 @@ jobs:
       matrix:
         php-version:
           - '8.5'
-    outputs:
-      files_changed: ${{ steps.validate.outputs.files_changed }}
     steps:
       - name: Setup PHP ${{ matrix.php-version }}
         uses: shivammathur/setup-php@v2
@@ -60,7 +61,7 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git pull --rebase origin "${TARGET_BRANCH}"
 
       - name: Sync JSON files
         run: php bin/sync-upcoming.php v1
@@ -111,4 +112,4 @@ jobs:
             exit 0
           }
 
-          git push origin HEAD || (git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin HEAD)
+          git push origin HEAD:"${TARGET_BRANCH}" || (git pull --rebase origin "${TARGET_BRANCH}" && git push origin HEAD:"${TARGET_BRANCH}")
