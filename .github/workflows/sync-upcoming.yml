@@ -54,7 +54,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-php${{ matrix.php-version }}-composer-
 
-      - name: Install dependencies (without Scraper)
+      - name: Install dependencies (without scraper)
         run: |
           composer remove turnmark/scraper --no-update || true
           composer install --prefer-dist --no-interaction --no-progress
