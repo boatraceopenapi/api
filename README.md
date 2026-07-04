@@ -43,7 +43,7 @@
 
 ## 🌐 エンドポイント
 
-> 📅 対応期間: 2026年07月01日以降
+> 📅 対応期間: 2026年01月01日以降
 
 ```bash
 https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
@@ -63,8 +63,8 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 
 ## 🧩 サンプル
 
-- 2026年07月01日のデータ
-  - [https://boatraceopenapi.github.io/api/v1/2026/20260701.json](https://boatraceopenapi.github.io/api/v1/2026/20260701.json)
+- 2026年05月01日のデータ
+  - [https://boatraceopenapi.github.io/api/v1/2026/20260501.json](https://boatraceopenapi.github.io/api/v1/2026/20260501.json)
 - 当日のデータ
   - [https://boatraceopenapi.github.io/api/v1/today.json](https://boatraceopenapi.github.io/api/v1/today.json)
 
