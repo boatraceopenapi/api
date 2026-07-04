@@ -1,0 +1,45 @@
+on:
+  push:
+    branches:
+      - gh-pages
+    paths:
+      - 'docs/v1/**.json'
+  workflow_dispatch:
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  pages: write
+  id-token: write
+
+jobs:
+  deploy-pages:
+    name: Deploy to pages (Ubuntu 24.04)
+    needs: sync-and-commit
+    if: needs.sync-and-commit.outputs.files_changed == 'true'
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Setup pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Deploy to pages
+        id: deployment
+        uses: actions/deploy-pages@v4
