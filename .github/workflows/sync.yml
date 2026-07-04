@@ -13,13 +13,15 @@ permissions:
   contents: write
 
 jobs:
-  deploy-v1:
-    name: Deploy v1 on PHP ${{ matrix.php-version }} (Ubuntu 24.04)
+  sync-and-commit:
+    name: Sync and commit on PHP ${{ matrix.php-version }} (Ubuntu 24.04)
     runs-on: ubuntu-24.04
     strategy:
       matrix:
         php-version:
           - '8.5'
+    outputs:
+      files_changed: ${{ steps.validate.outputs.files_changed }}
     steps:
       - name: Setup PHP ${{ matrix.php-version }}
         uses: shivammathur/setup-php@v2
@@ -54,16 +56,17 @@ jobs:
           composer update turnmark/scraper --with-dependencies
           composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Sync with remote before generating files
+      - name: Sync with remote JSON files
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git pull --rebase origin "${GITHUB_REF_NAME}"
 
-      - name: Sync JSON
+      - name: Sync JSON files
         run: php bin/sync.php v1
 
-      - name: Validate generated JSON
+      - name: Validate JSON files
+        id: validate
         run: |
           set -e
           FILES=$(
@@ -76,11 +79,11 @@ jobs:
 
           if [ -z "$FILES" ]; then
             echo "No JSON changes in docs/v1."
-            echo "files_changed=false" >> "$GITHUB_ENV"
+            echo "files_changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          echo "files_changed=true" >> "$GITHUB_ENV"
+          echo "files_changed=true" >> "$GITHUB_OUTPUT"
           echo "$FILES" > /tmp/changed_files.txt
 
           if echo "$FILES" | xargs grep -l '^<<<<<<<\|^=======$\|^>>>>>>>' 2>/dev/null; then
@@ -96,8 +99,8 @@ jobs:
             fi
           done < /tmp/changed_files.txt
 
-      - name: Deploy JSON
-        if: env.files_changed == 'true'
+      - name: Deploy JSON files
+        if: steps.validate.outputs.files_changed == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
