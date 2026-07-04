@@ -181,10 +181,22 @@ final class Synchronizer
 
             foreach (($payload['programs']['stadiums'] ?? []) as $stadiumNumber => $stadium) {
                 foreach (($stadium['races'] ?? []) as $raceNumber => $race) {
-                    /** @var ?non-empty-string $closedAt */
+                    /**
+                     * @var array{
+                     *   closed_at: ?non-empty-string,
+                     *   preview: array<non-empty-string, mixed>,
+                     *   result: array<non-empty-string, mixed>,
+                     * } $race
+                     */
+
                     $closedAt = $race['closed_at'] ?? null;
 
                     if ($closedAt === null || !self::isWithinThirtyMinutes($closedAt)) {
+                        $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber]['preview'] =
+                            self::normalizeObject($race['preview'], ['racers']);
+                        $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber]['result'] =
+                            self::normalizeObject($race['result'], ['racers']);
+
                         $skippedCount++;
 
                         continue;
@@ -196,6 +208,11 @@ final class Synchronizer
                         ActionsLogger::warning(
                             "program scrape failed: stadium={$stadiumNumber} race={$raceNumber} closed_at={$closedAt} message={$exception->getMessage()}"
                         );
+
+                        $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber]['preview'] =
+                            self::normalizeObject($race['preview'], ['racers']);
+                        $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber]['result'] =
+                            self::normalizeObject($race['result'], ['racers']);
 
                         $skippedCount++;
 
