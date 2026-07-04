@@ -175,6 +175,8 @@ final class Synchronizer
             $updatedCount = 0;
             $skippedCount = 0;
 
+            Scraper::setMinCallIntervalSeconds(1.0);
+
             foreach (($payload['programs']['stadiums'] ?? []) as $stadiumNumber => $stadium) {
                 foreach (($stadium['races'] ?? []) as $raceNumber => $race) {
                     /** @var ?non-empty-string $closedAt */
