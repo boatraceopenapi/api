@@ -19,12 +19,7 @@ permissions:
 jobs:
   deploy-pages:
     name: Deploy to pages (Ubuntu 24.04)
-    needs: sync-and-commit
-    if: needs.sync-and-commit.outputs.files_changed == 'true'
     runs-on: ubuntu-24.04
-    concurrency:
-      group: pages
-      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
