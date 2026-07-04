@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   keepalive:
-    name: Keepalive  (Ubuntu 24.04)
+    name: Keepalive (Ubuntu 24.04)
     runs-on: ubuntu-24.04
     steps:
       - name: Re-enable Workflows
