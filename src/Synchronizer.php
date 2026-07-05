@@ -32,19 +32,6 @@ final class Synchronizer
     private const array SUPPORTED_VERSIONS = ['v1'];
 
     /**
-     * @var non-empty-list<non-empty-string>
-     */
-    private const array PAYOUT_KEYS = [
-        'trifecta',
-        'trio',
-        'exacta',
-        'quinella',
-        'quinella_place',
-        'win',
-        'place',
-    ];
-
-    /**
      * @param \DateTimeInterface|non-empty-string $date
      * @param non-empty-string $version
      * @return void
@@ -77,11 +64,13 @@ final class Synchronizer
 
             foreach ($programBulk as $stadiumNumber => $items) {
                 foreach ($items as $raceNumber => $program) {
-                    $preview = $previewBulk[$stadiumNumber][$raceNumber] ?? [];
-                    $result = $resultBulk[$stadiumNumber][$raceNumber] ?? [];
+                    $preview = $previewBulk[$stadiumNumber][$raceNumber] ?? new \stdClass();
+                    $result = $resultBulk[$stadiumNumber][$raceNumber] ?? new \stdClass();
 
-                    $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber]
-                        = self::buildRace($program, $preview, $result);
+                    $program['preview'] = $preview;
+                    $program['result'] = $result;
+
+                    $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber] = $program;
 
                     $raceCount++;
                 }
@@ -207,8 +196,10 @@ final class Synchronizer
                         $result = $race['result'];
                     }
 
-                    $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber]
-                        = self::buildRace($program, $preview, $result);
+                    $program['preview'] = $preview;
+                    $program['result'] = $result;
+
+                    $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber] = $program;
 
                     $updatedCount++;
 
@@ -244,27 +235,6 @@ final class Synchronizer
         if (!in_array($version, self::SUPPORTED_VERSIONS, true)) {
             throw new RuntimeException("Unsupported version: {$version}");
         }
-    }
-
-    /**
-     * @param array<non-empty-string, mixed> $program
-     * @param array<non-empty-string, mixed> $preview
-     * @param array<non-empty-string, mixed> $result
-     * @return array<non-empty-string, mixed>
-     */
-    private static function buildRace(array $program, array $preview, array $result): array
-    {
-        /**
-         * @var array{
-         *   payouts: array<non-empty-string, array<mixed>>,
-         * } $result
-         */
-        $result['payouts'] = self::normalizeObject($result['payouts'] ?? [], self::PAYOUT_KEYS);
-
-        $program['preview'] = $preview;
-        $program['result'] = $result;
-
-        return $program;
     }
 
     /**
@@ -314,21 +284,5 @@ final class Synchronizer
     private static function resolveTodayPath(string $version): string
     {
         return __DIR__ . "/../docs/{$version}/today.json";
-    }
-
-    /**
-     * @param array<non-empty-string, mixed> $payload
-     * @param list<non-empty-string> $keys
-     * @return array<non-empty-string, mixed>
-     */
-    private static function normalizeObject(array $payload, array $keys): array
-    {
-        foreach ($keys as $key) {
-            if (isset($payload[$key]) && $payload[$key] === []) {
-                $payload[$key] = new \stdClass();
-            }
-        }
-
-        return $payload;
     }
 }
