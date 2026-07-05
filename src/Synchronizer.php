@@ -192,6 +192,8 @@ final class Synchronizer
                     $closedAt = $race['closed_at'] ?? null;
 
                     if ($closedAt === null || !self::isWithinThirtyMinutes($closedAt)) {
+                        $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber] =
+                            self::normalizeObject($race, ['preview', 'result']);
                         $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber]['preview'] =
                             self::normalizeObject($race['preview'], ['racers']);
                         $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber]['result'] =
@@ -209,6 +211,8 @@ final class Synchronizer
                             "program scrape failed: stadium={$stadiumNumber} race={$raceNumber} closed_at={$closedAt} message={$exception->getMessage()}"
                         );
 
+                        $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber] =
+                            self::normalizeObject($race, ['preview', 'result']);
                         $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber]['preview'] =
                             self::normalizeObject($race['preview'], ['racers']);
                         $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber]['result'] =
