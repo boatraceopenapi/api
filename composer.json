@@ -20,7 +20,7 @@
     "require": {
         "php": "^8.5",
         "nesbot/carbon": "^3.8.4",
-        "turnmark/scraper": "^0.4"
+        "turnmark/scraper": "^0.5"
     },
     "require-dev": {
         "ergebnis/composer-normalize": "^2.52",
