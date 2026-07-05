@@ -96,18 +96,18 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 | `flying_count` | `integer` | ✅ | フライング回数 |
 | `late_count` | `integer` | ✅ | 出遅れ回数 |
 | `average_start_timing` | `float` | — | 平均スタートタイミング |
-| `national_top_1_percent` | `float` | — | 全国1着率（%） |
-| `national_top_2_percent` | `float` | — | 全国2着内率（%） |
-| `national_top_3_percent` | `float` | — | 全国3着内率（%） |
-| `local_top_1_percent` | `float` | — | 当地1着率（%） |
-| `local_top_2_percent` | `float` | — | 当地2着内率（%） |
-| `local_top_3_percent` | `float` | — | 当地3着内率（%） |
+| `national_win_rate` | `float` | — | 全国勝率 |
+| `national_top_2_percent` | `float` | — | 全国 2 連対率（%） |
+| `national_top_3_percent` | `float` | — | 全国 3 連対率（%） |
+| `local_win_rate` | `float` | — | 当地勝率 |
+| `local_top_2_percent` | `float` | — | 当地 2 連対率（%） |
+| `local_top_3_percent` | `float` | — | 当地 3 連対率（%） |
 | `motor_number` | `integer` | — | モーター番号 |
-| `motor_top_2_percent` | `float` | — | モーター2着内率（%） |
-| `motor_top_3_percent` | `float` | — | モーター3着内率（%） |
+| `motor_top_2_percent` | `float` | — | モーター 2 連対率（%） |
+| `motor_top_3_percent` | `float` | — | モーター 3 連対率（%） |
 | `boat_number` | `integer` | — | ボート番号 |
-| `boat_top_2_percent` | `float` | — | ボート2着内率（%） |
-| `boat_top_3_percent` | `float` | — | ボート3着内率（%） |
+| `boat_top_2_percent` | `float` | — | ボート 2 連対率（%） |
+| `boat_top_3_percent` | `float` | — | ボート 3 連対率（%） |
 
 ---
 
