@@ -69,63 +69,26 @@ final class Synchronizer
 
             Scraper::setMinCallIntervalSeconds(1.0);
 
-            try {
-                $programBulk = Scraper::scrapeProgramBulk($date);
-            } catch (ValueError $exception) {
-                ActionsLogger::warning(
-                    "program bulk scrape failed for {$dateYmd} ({$version}); skipped: {$exception->getMessage()}"
-                );
-
-                return;
-            }
-
-            try {
-                $previewBulk = Scraper::scrapePreviewBulk($date);
-            } catch (ValueError $exception) {
-                ActionsLogger::warning(
-                    "preview bulk scrape failed for {$dateYmd} ({$version}); continuing without preview: {$exception->getMessage()}"
-                );
-
-                $previewBulk = [];
-            }
-
-            try {
-                $resultBulk = Scraper::scrapeResultBulk($date);
-            } catch (ValueError $exception) {
-                ActionsLogger::warning(
-                    "result bulk scrape failed for {$dateYmd} ({$version}); continuing without result: {$exception->getMessage()}"
-                );
-
-                $resultBulk = [];
-            }
+            $programBulk = Scraper::scrapeProgramBulk($date);
+            $previewBulk = Scraper::scrapePreviewBulk($date);
+            $resultBulk = Scraper::scrapeResultBulk($date);
 
             $raceCount = 0;
-            $skippedCount = 0;
 
             foreach ($programBulk as $stadiumNumber => $items) {
                 foreach ($items as $raceNumber => $program) {
                     $preview = $previewBulk[$stadiumNumber][$raceNumber] ?? [];
                     $result = $resultBulk[$stadiumNumber][$raceNumber] ?? [];
 
-                    try {
-                        $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber]
-                            = self::buildRace($program, $preview, $result);
-                    } catch (ValueError $exception) {
-                        ActionsLogger::warning(
-                            "build race failed: stadium={$stadiumNumber} race={$raceNumber} message={$exception->getMessage()}"
-                        );
-
-                        $skippedCount++;
-
-                        continue;
-                    }
+                    $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber]
+                        = self::buildRace($program, $preview, $result);
 
                     $raceCount++;
                 }
             }
 
             $stadiumCount = count($payload['programs']['stadiums'] ?? []);
-            ActionsLogger::info("scraped: stadiums={$stadiumCount} races={$raceCount} skipped={$skippedCount}");
+            ActionsLogger::info("scraped: stadiums={$stadiumCount} races={$raceCount}");
 
             if ($payload['programs'] === []) {
                 ActionsLogger::warning("no programs found for {$dateYmd} ({$version}); skipped saving");
