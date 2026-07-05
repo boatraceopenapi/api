@@ -108,7 +108,7 @@ jobs:
             fi
           done < /tmp/changed_files.txt
 
-      - name: Deploy JSON files
+      - name: Commit JSON files
         if: steps.validate.outputs.files_changed == 'true'
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
