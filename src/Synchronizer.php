@@ -32,6 +32,19 @@ final class Synchronizer
     private const array SUPPORTED_VERSIONS = ['v1'];
 
     /**
+     * @var non-empty-list<non-empty-string>
+     */
+    private const array PAYOUT_KEYS = [
+        'trifecta',
+        'trio',
+        'exacta',
+        'quinella',
+        'quinella_place',
+        'win',
+        'place',
+    ];
+
+    /**
      * @param \DateTimeInterface|non-empty-string $date
      * @param non-empty-string $version
      * @return void
@@ -192,13 +205,6 @@ final class Synchronizer
                     $closedAt = $race['closed_at'] ?? null;
 
                     if ($closedAt === null || !self::isWithinThirtyMinutes($closedAt)) {
-                        $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber] =
-                            self::normalizeObject($race, ['preview', 'result']);
-                        $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber]['preview'] =
-                            self::normalizeObject($race['preview'], ['racers']);
-                        $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber]['result'] =
-                            self::normalizeObject($race['result'], ['racers']);
-
                         $skippedCount++;
 
                         continue;
@@ -210,13 +216,6 @@ final class Synchronizer
                         ActionsLogger::warning(
                             "program scrape failed: stadium={$stadiumNumber} race={$raceNumber} closed_at={$closedAt} message={$exception->getMessage()}"
                         );
-
-                        $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber] =
-                            self::normalizeObject($race, ['preview', 'result']);
-                        $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber]['preview'] =
-                            self::normalizeObject($race['preview'], ['racers']);
-                        $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber]['result'] =
-                            self::normalizeObject($race['result'], ['racers']);
 
                         $skippedCount++;
 
@@ -292,10 +291,17 @@ final class Synchronizer
      */
     private static function buildRace(array $program, array $preview, array $result): array
     {
-        $program['preview'] = self::normalizeObject($preview, ['racers']);
-        $program['result'] = self::normalizeObject($result, ['racers']);
+        /**
+         * @var array{
+         *   payouts: array<non-empty-string, array<mixed>>,
+         * } $result
+         */
+        $result['payouts'] = self::normalizeObject($result['payouts'] ?? [], self::PAYOUT_KEYS);
 
-        return self::normalizeObject($program, ['preview', 'result']);
+        $program['preview'] = $preview;
+        $program['result'] = $result;
+
+        return $program;
     }
 
     /**
