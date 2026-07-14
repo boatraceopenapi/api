@@ -30,7 +30,7 @@
 
 ---
 
-## 概要
+## 📝 概要
 
 この API では、ボートレース（競艇）のデータを取得できます。データは GitHub Pages 上で公開されており、JSON 形式で提供されます。
 
@@ -41,7 +41,7 @@
 
 ---
 
-## エンドポイント
+## 🌐 エンドポイント
 
 対応期間: **2026年01月01日以降**
 
@@ -57,7 +57,7 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 
 ---
 
-## レスポンス仕様
+## 📦 レスポンス仕様
 
 レスポンスの JSON 構造・各フィールドの詳細については、スキーマドキュメントを参照してください。
 
@@ -65,7 +65,7 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 
 ---
 
-## サンプル
+## 💡 サンプル
 
 - 2026年05月01日のデータ: [https://boatraceopenapi.github.io/api/v1/2026/20260501.json](https://boatraceopenapi.github.io/api/v1/2026/20260501.json)
 - 当日のデータ: [https://boatraceopenapi.github.io/api/v1/today.json](https://boatraceopenapi.github.io/api/v1/today.json)
@@ -74,7 +74,7 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 
 ---
 
-## turnmark/api との違い
+## 🔍 turnmark/api との違い
 
 同じくボートレース（競艇）のデータを提供する [turnmark/api](https://github.com/turnmark/api) とは、データの範囲や更新タイミングが異なります。用途に応じて使い分けてください。
 
@@ -89,7 +89,7 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 
 ---
 
-## コントリビューション
+## 🤝 コントリビューション
 
 **Pull Request は受け付けておりません。**
 
@@ -99,6 +99,6 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 
 ---
 
-## ライセンス
+## 📄 ライセンス
 
 Boatrace Open API は [MIT license](LICENSE) の元で公開されています。
