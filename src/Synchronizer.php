@@ -57,21 +57,18 @@ final class Synchronizer
 
             Scraper::setMinCallIntervalSeconds(1.0);
 
-            $programBulk = BatchScraper::scrapeProgram($date);
-            $previewBulk = BatchScraper::scrapePreview($date);
-            $resultBulk = BatchScraper::scrapeResult($date);
+            $program = BatchScraper::scrapeProgram($date);
+            $preview = BatchScraper::scrapePreview($date);
+            $result = BatchScraper::scrapeResult($date);
 
             $raceCount = 0;
 
-            foreach ($programBulk as $stadiumNumber => $items) {
-                foreach ($items as $raceNumber => $program) {
-                    $preview = $previewBulk[$stadiumNumber][$raceNumber] ?? new \stdClass();
-                    $result = $resultBulk[$stadiumNumber][$raceNumber] ?? new \stdClass();
+            foreach ($program as $stadiumNumber => $races) {
+                foreach ($races as $raceNumber => $race) {
+                    $race['preview'] = $preview[$stadiumNumber][$raceNumber] ?? new \stdClass();
+                    $race['result'] = $result[$stadiumNumber][$raceNumber] ?? new \stdClass();
 
-                    $program['preview'] = $preview;
-                    $program['result'] = $result;
-
-                    $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber] = $program;
+                    $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber] = $race;
 
                     $raceCount++;
                 }
