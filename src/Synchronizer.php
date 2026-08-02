@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable as Carbon;
 use DateTimeInterface;
 use RuntimeException;
 use Throwable;
+use Turnmark\Scraper\BatchScraper;
 use Turnmark\Scraper\Scraper;
 use ValueError;
 
@@ -56,9 +57,9 @@ final class Synchronizer
 
             Scraper::setMinCallIntervalSeconds(1.0);
 
-            $programBulk = Scraper::scrapeProgramBulk($date);
-            $previewBulk = Scraper::scrapePreviewBulk($date);
-            $resultBulk = Scraper::scrapeResultBulk($date);
+            $programBulk = BatchScraper::scrapeProgram($date);
+            $previewBulk = BatchScraper::scrapePreview($date);
+            $resultBulk = BatchScraper::scrapeResult($date);
 
             $raceCount = 0;
 
