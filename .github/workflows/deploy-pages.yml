@@ -10,7 +10,7 @@ on:
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   pages: write
@@ -20,6 +20,7 @@ jobs:
   deploy-pages:
     name: Deploy to pages (Ubuntu 24.04)
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     environment:
       name: github-pages
       url: ${{ steps.deployment-final.outputs.page_url }}
