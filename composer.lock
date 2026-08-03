@@ -1738,16 +1738,16 @@
         },
         {
             "name": "turnmark/scraper",
-            "version": "0.7.0",
+            "version": "0.7.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/turnmark/scraper.git",
-                "reference": "db4526d8214397be76f1d31fc4bc3deabfcaee9c"
+                "reference": "7fb97425769507a1a8561c885a93d23c2f05e002"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/turnmark/scraper/zipball/db4526d8214397be76f1d31fc4bc3deabfcaee9c",
-                "reference": "db4526d8214397be76f1d31fc4bc3deabfcaee9c",
+                "url": "https://api.github.com/repos/turnmark/scraper/zipball/7fb97425769507a1a8561c885a93d23c2f05e002",
+                "reference": "7fb97425769507a1a8561c885a93d23c2f05e002",
                 "shasum": ""
             },
             "require": {
@@ -1794,7 +1794,7 @@
                 "issues": "https://github.com/turnmark/turnmark/issues",
                 "source": "https://github.com/turnmark/turnmark"
             },
-            "time": "2026-08-01T21:49:51+00:00"
+            "time": "2026-08-02T06:57:27+00:00"
         }
     ],
     "packages-dev": [
