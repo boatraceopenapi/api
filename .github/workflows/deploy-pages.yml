@@ -8,9 +8,11 @@ on:
       - 'docs/v1/**.json'
   workflow_dispatch:
 
+# デプロイは公開サイズに比例して長くなる（3.4 GiB で約 160 秒）。実行中を取り消すと、
+# 起動間隔より長くなったときに 1 回も終わらなくなるので、最後まで終えてから最新の 1 件を流す
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   pages: write

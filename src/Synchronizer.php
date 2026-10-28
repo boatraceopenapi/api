@@ -33,6 +33,30 @@ final class Synchronizer
     private const array SUPPORTED_VERSIONS = ['v1'];
 
     /**
+     * syncUpcoming() が取り直す範囲（締切の何分前から）。直前情報は締切の 30〜7 分前に出揃う
+     *
+     * @var positive-int
+     */
+    private const int MINUTES_BEFORE_CLOSE = 30;
+
+    /**
+     * syncUpcoming() が取り直す範囲（締切の何分後まで）。結果は締切の 8〜31 分後に入るので、
+     * 10 分間隔の起動でも 30 分を過ぎてから最低 1 回は取り直せるよう 40 分にしている
+     *
+     * @var positive-int
+     */
+    private const int MINUTES_AFTER_CLOSE = 40;
+
+    /**
+     * 結果（3 連単の払戻）がまだ入っていないレースは、締切のこの分数後まで取り直し続ける。
+     * 水面状況などで発売・発走が遅れても closed_at が更新されないことがあり、
+     * 2026-10 には締切後 30 分のあいだ取り直しても結果が入らなかったレースが約 0.4% あった
+     *
+     * @var positive-int
+     */
+    private const int MINUTES_AFTER_CLOSE_UNTIL_RESULT = 120;
+
+    /**
      * @param \DateTimeInterface|non-empty-string $date
      * @param non-empty-string $version
      * @return void
@@ -154,7 +178,7 @@ final class Synchronizer
 
                     $closedAt = $race['closed_at'] ?? null;
 
-                    if ($closedAt === null || !self::isWithinThirtyMinutes($closedAt)) {
+                    if ($closedAt === null || !self::shouldRefresh($closedAt, $race['result'])) {
                         $skippedCount++;
 
                         continue;
@@ -237,14 +261,30 @@ final class Synchronizer
 
     /**
      * @param non-empty-string $closedAt
+     * @param array<non-empty-string, mixed> $result
      * @return bool
      */
-    private static function isWithinThirtyMinutes(string $closedAt): bool
+    private static function shouldRefresh(string $closedAt, array $result): bool
     {
-        return Carbon::parse($closedAt, self::TIMEZONE)->between(
-            Carbon::now(self::TIMEZONE)->subMinutes(30),
-            Carbon::now(self::TIMEZONE)->addMinutes(30),
-        );
+        $closedAt = Carbon::parse($closedAt, self::TIMEZONE);
+        $now = Carbon::now(self::TIMEZONE);
+
+        if ($closedAt->between(
+            $now->subMinutes(self::MINUTES_AFTER_CLOSE),
+            $now->addMinutes(self::MINUTES_BEFORE_CLOSE),
+        )) {
+            return true;
+        }
+
+        if (!$closedAt->between(
+            $now->subMinutes(self::MINUTES_AFTER_CLOSE_UNTIL_RESULT),
+            $now,
+        )) {
+            return false;
+        }
+
+        /** @var array{payouts?: array{trifecta?: list<mixed>}} $result */
+        return ($result['payouts']['trifecta'] ?? []) === [];
     }
 
     /**

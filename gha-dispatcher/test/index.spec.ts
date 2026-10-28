@@ -87,7 +87,7 @@ describe("scheduler", () => {
 		expect(response.status).toBe(401);
 	});
 
-	it("returns the next 3-minute slot from /scheduler with X-Trigger-Secret", async () => {
+	it("returns the next 10-minute slot from /scheduler with X-Trigger-Secret", async () => {
 		const before = Date.now();
 		const request = new IncomingRequest("https://example.com/scheduler", {
 			headers: { "X-Trigger-Secret": "test-token" },
@@ -111,15 +111,16 @@ describe("scheduler", () => {
 });
 
 describe("slot helpers", () => {
-	it("rounds up to the next 3-minute boundary", () => {
-		expect(nextSlot(Date.parse("2026-10-28T08:48:00Z"))).toBe(Date.parse("2026-10-28T08:51:00Z"));
-		expect(nextSlot(Date.parse("2026-10-28T08:49:59Z"))).toBe(Date.parse("2026-10-28T08:51:00Z"));
+	it("rounds up to the next 10-minute boundary", () => {
+		expect(nextSlot(Date.parse("2026-10-28T08:48:00Z"))).toBe(Date.parse("2026-10-28T08:50:00Z"));
+		expect(nextSlot(Date.parse("2026-10-28T08:49:59Z"))).toBe(Date.parse("2026-10-28T08:50:00Z"));
+		expect(nextSlot(Date.parse("2026-10-28T08:50:00Z"))).toBe(Date.parse("2026-10-28T09:00:00Z"));
 	});
 
 	it("dispatches only sync.yml on the sync hours", () => {
 		expect(workflowsForSlot(Date.parse("2026-10-28T15:00:00Z"))).toEqual(["sync.yml"]);
 		expect(workflowsForSlot(Date.parse("2026-10-28T00:00:00Z"))).toEqual(["sync-upcoming.yml"]);
-		expect(workflowsForSlot(Date.parse("2026-10-28T15:03:00Z"))).toEqual(["sync-upcoming.yml"]);
+		expect(workflowsForSlot(Date.parse("2026-10-28T15:10:00Z"))).toEqual(["sync-upcoming.yml"]);
 		expect(workflowsForSlot(Date.parse("2026-10-28T12:00:00Z"))).toEqual(["sync-upcoming.yml"]);
 	});
 });
@@ -135,15 +136,19 @@ describe("hasRaceNear", () => {
 	});
 	const jst = (hhmm: string, date = "2026-10-28") => Date.parse(`${date}T${hhmm}:00+09:00`);
 
-	it("is true within 35 minutes of a closing time", () => {
+	it("is true from 35 minutes before to 125 minutes after a closing time", () => {
 		expect(hasRaceNear(todayJson, jst("08:00"))).toBe(true);
-		expect(hasRaceNear(todayJson, jst("09:10"))).toBe(true);
-		expect(hasRaceNear(todayJson, jst("23:29"))).toBe(true);
+		expect(hasRaceNear(todayJson, jst("10:40"))).toBe(true);
+		expect(hasRaceNear(todayJson, jst("00:59", "2026-10-29"))).toBe(true);
+	});
+
+	it("is false outside that range", () => {
+		expect(hasRaceNear(todayJson, jst("10:41"))).toBe(false);
 	});
 
 	it("is false in the night gap", () => {
 		expect(hasRaceNear(todayJson, jst("07:59"))).toBe(false);
-		expect(hasRaceNear(todayJson, jst("23:30"))).toBe(false);
+		expect(hasRaceNear(todayJson, jst("01:00", "2026-10-29"))).toBe(false);
 		expect(hasRaceNear(todayJson, jst("03:00", "2026-10-29"))).toBe(false);
 	});
 

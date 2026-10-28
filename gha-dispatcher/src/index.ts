@@ -13,9 +13,10 @@ const DEFAULT_WORKFLOW_FILE = 'sync-upcoming.yml';
 const DEFAULT_REF = 'gh-pages';
 
 // dispatch の間隔。SYNC_HOURS_UTC の正時の回は sync.yml、それ以外の回は sync-upcoming.yml を起動する
-export const INTERVAL_MS = 3 * 60 * 1000;
+// 3.4 GiB 規模の Pages デプロイに約 160 秒かかるため、デプロイが次の回までに終わる間隔にしている
+export const INTERVAL_MS = 10 * 60 * 1000;
 // 15:00 UTC（JST 0:00）に前日分を確定させ、当日分のファイルを作る。
-// 当日分の各レースは締切 ±30 分に sync-upcoming.yml が取り直すので、日中の全体同期は持たない
+// 当日分の各レースは締切 30 分前から結果が入るまで sync-upcoming.yml が取り直すので、日中の全体同期は持たない
 // （JST 9:00 の全体同期は 1R 締切 8:35 より後で、約 17 分間 sync-upcoming.yml を待たせていた）。
 // 失敗した日の再試行は sync.yml 自身の schedule トリガーに任せる。
 const SYNC_HOURS_UTC = [15];
@@ -24,7 +25,7 @@ const SYNC_HOURS_UTC = [15];
 const WATCHDOG_CRON = '*/10 * * * *';
 
 // 2 本のワークフローは concurrency グループを共有しており、待機中の run は後続に置き換えられる。
-// 同じ回で両方を dispatch すると、待機に回った sync.yml が 3 分後の sync-upcoming.yml に取り消される
+// 同じ回で両方を dispatch すると、待機に回った sync.yml が次の回の sync-upcoming.yml に取り消される
 // （2026-10-27 15:00 に実際に発生）。sync.yml は当日分の直前情報も取り直すので、正時の回はこれだけにする。
 export function workflowsForSlot(slotMs: number): string[] {
   const slot = new Date(slotMs);
@@ -38,14 +39,16 @@ export function nextSlot(nowMs: number): number {
   return Math.floor(nowMs / INTERVAL_MS) * INTERVAL_MS + INTERVAL_MS;
 }
 
-// sync-upcoming.yml は締切 ±30 分のレースしか更新しないので、近くにレースがない回（主に夜間）は dispatch しない。
+// sync-upcoming.yml は締切 30 分前〜40 分後のレースと、締切 120 分後までで結果がまだないレースしか更新しないので、
+// 近くにレースがない回（主に夜間）は dispatch しない。結果の有無までは見ず、締切 120 分後までは dispatch する。
 // run の起動は dispatch の 1〜2 分後になり、Pages のキャッシュ（max-age=600）で締切時刻が遅れて届くこともあるため、
-// PHP 側の ±30 分より少し広く取る。
+// PHP 側（Synchronizer の MINUTES_BEFORE_CLOSE / MINUTES_AFTER_CLOSE_UNTIL_RESULT）より両側 5 分ずつ広く取る。
 const TODAY_JSON_URL = 'https://boatraceopenapi.github.io/api/v1/today.json';
-const NEAR_RACE_MARGIN_MS = 35 * 60 * 1000;
+const NEAR_RACE_BEFORE_CLOSE_MS = 35 * 60 * 1000;
+const NEAR_RACE_AFTER_CLOSE_MS = 125 * 60 * 1000;
 
 /**
- * today.json の closed_at（JST）に、nowMs の前後 NEAR_RACE_MARGIN_MS 以内のものがあるか。
+ * today.json の closed_at（JST）に、nowMs から見て締切 NEAR_RACE_BEFORE_CLOSE_MS 前〜NEAR_RACE_AFTER_CLOSE_MS 後のものがあるか。
  * closed_at が 1 件も見つからなければ判断できないので null を返す。
  * 1.2 MB 程度あり JSON.parse では Free プランの CPU 上限（10 ms）に近いため、正規表現で拾う。
  */
@@ -54,7 +57,10 @@ export function hasRaceNear(todayJson: string, nowMs: number): boolean | null {
   if (closings.length === 0) {
     return null;
   }
-  return closings.some(([, date, time]) => Math.abs(Date.parse(`${date}T${time}+09:00`) - nowMs) <= NEAR_RACE_MARGIN_MS);
+  return closings.some(([, date, time]) => {
+    const untilClose = Date.parse(`${date}T${time}+09:00`) - nowMs;
+    return untilClose <= NEAR_RACE_BEFORE_CLOSE_MS && -untilClose <= NEAR_RACE_AFTER_CLOSE_MS;
+  });
 }
 
 // today.json が読めないときは従来どおり dispatch する（この判定のせいで同期を止めない）
@@ -79,7 +85,7 @@ async function shouldDispatchUpcoming(nowMs: number): Promise<boolean> {
 
 /**
  * Cloudflare Cron Triggers が発火しなくなったため（2026-10-28）、
- * Durable Object のアラームで 3 分刻みの dispatch を自前で回す。
+ * Durable Object のアラームで 10 分刻みの dispatch を自前で回す。
  */
 export class Scheduler extends DurableObject<Env> {
   async ensure(): Promise<number> {
