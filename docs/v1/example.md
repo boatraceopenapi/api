@@ -28,9 +28,9 @@ curl "https://boatraceopenapi.github.io/api/v1/${YEAR}/${DATE}.json" \
 curl "https://boatraceopenapi.github.io/api/v1/${YEAR}/${DATE}.json" \
   | jq '.programs.stadiums["1"].races["1"].racers | to_entries[] | .value.name'
 
-# 桐生 1 レースの 3 連単オッズ 1-2-3
+# 桐生 1 レースの 3 連単の払戻
 curl "https://boatraceopenapi.github.io/api/v1/${YEAR}/${DATE}.json" \
-  | jq '.programs.stadiums["1"].races["1"].odds.trifecta["1"]["2"]["3"]'
+  | jq '.programs.stadiums["1"].races["1"].result.payouts.trifecta'
 ```
 
 ---
@@ -199,7 +199,6 @@ type Race struct {
 	Subtitle string            `json:"subtitle"`
 	Racers   map[string]Racer  `json:"racers"`
 	Preview  *Preview          `json:"preview"`
-	Odds     *Odds             `json:"odds"`
 	Result   *Result           `json:"result"`
 }
 
