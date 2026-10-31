@@ -63,6 +63,10 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 
 → [docs/v1/schema.md](docs/v1/schema.md)
 
+`stadium_number`（レース場）や `place_number`（着順）などのコード値の意味は、コード表を参照してください。
+
+→ [docs/v1/codes.md](docs/v1/codes.md)
+
 ---
 
 ## 💡 サンプル
@@ -71,6 +75,16 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 - 当日のデータ: [https://boatraceopenapi.github.io/api/v1/today.json](https://boatraceopenapi.github.io/api/v1/today.json)
 
 各言語でのデータ取得・パース例は [docs/v1/example.md](docs/v1/example.md) を参照してください。
+
+---
+
+## 🤖 AI エージェントで利用する場合
+
+Claude Code や Codex などの AI エージェントにデータの取り込みや分析を任せる場合は、次の URL を読ませてください。取得方法・コード値の扱い・集計の注意点を AI 向けにまとめています。
+
+```
+https://boatraceopenapi.github.io/api/llms.txt
+```
 
 ---
 

@@ -1,0 +1,38 @@
+# Boatrace Open API
+
+> ボートレース（競艇）全 24 場の出走表・直前情報・結果・払戻を、1 日 1 ファイルの JSON で配信する非公式 API です。GitHub Pages 上の静的ファイルで、認証は不要です。オッズは含みません。
+
+このファイルは、AI エージェントがこの API のデータを取り込み・集計・モデル構築に使うときのための要約です。詳細は下のリンク先を読んでください。
+
+## 取得方法
+
+- 日別: `https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json`（日付は JST）
+- 当日: `https://boatraceopenapi.github.io/api/v1/today.json`（約 10 分ごとに上書き）
+- データがない日付は HTTP 404 を返します。
+- 過去分を一括で取り込むときは、1 日ずつ順番に取得し、間隔を空けてください。取得したファイルはローカルに保存し、同じ日付を何度も取りに行かないでください。
+
+## 必ず守ること
+
+- `*_number` の多くはコード値です。数値として平均・並べ替え・比較せず、[コード表](https://boatraceopenapi.github.io/api/v1/codes.md) で意味に変換してください。
+- `place_number` の `1`〜`6` だけが着順です。`7` 以上は失格・欠場で、`14` はフライングです。
+- `grade_number` は番号順が格の順ではありません（`6` が PG1）。
+- 中止になったレースは `result.racers.*.place_number` がすべて `null` です。集計から除外してください。
+- `wind_direction_number` の「北」「東」などは地図上の方角ではなく、スタートラインに対する相対的な向きで、全 24 場共通です。`3`〜`7` が追い風、`11`〜`15` が向かい風、`17` が無風です。方角への変換やレース場ごとの補正はしないでください。
+- `start_timing` はフライングのとき負の値、出遅れ・欠場のとき `null` です。
+- レースのキーは `(date, stadium_number, race_number)`、出走艇のキーはそれに `entry_number` を加えたものです。選手は `number`（登録番号）で識別します。
+- 進入コースは `course_number` です。枠番 `entry_number` と一致するとは限りません（前付けなどで入れ替わることは珍しくありません）。
+- ファイルの生成時期によって、存在するキーが違います（`parts`・`refunds`・`remarks`・`label` など）。キーがない場合も `null` と同じ欠損として扱ってください。
+- 予測モデルを作るときは時点に注意してください。出走表は前日まで、`preview`（直前情報）は締切の 30〜7 分前、`result` は締切後に分かる情報です。`result` の値（気象を含む）を特徴量に使うとリークになります。
+- 当日のファイルは途中の状態です。確定した過去データとして使うのは、翌日以降に取得したファイルにしてください。
+
+## ドキュメント
+
+- [スキーマ](https://boatraceopenapi.github.io/api/v1/schema.md): JSON の構造と全フィールドの説明、データの注意点
+- [コード表](https://boatraceopenapi.github.io/api/v1/codes.md): レース場・グレード・級別・着順・決まり手などの番号と意味
+- [サンプルコード](https://boatraceopenapi.github.io/api/v1/example.md): curl / TypeScript / Go / Python / JavaScript / Ruby / PHP での取得例
+
+## その他
+
+- [README](https://github.com/boatraceopenapi/api/blob/gh-pages/README.md): 注意事項・対応期間・ライセンス（MIT）
+- オッズが必要な場合は [turnmark/api](https://github.com/turnmark/api) を参照してください。
+- 非公式のデータで、正確性は保証されていません。公式の情報は BOATRACE 公式サイトで確認してください。
