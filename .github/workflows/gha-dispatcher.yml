@@ -1,0 +1,46 @@
+name: GHA Dispatcher
+
+on:
+  push:
+    branches:
+      - gh-pages
+    paths:
+      - 'gha-dispatcher/**'
+      - '.github/workflows/gha-dispatcher.yml'
+  pull_request:
+    paths:
+      - 'gha-dispatcher/**'
+      - '.github/workflows/gha-dispatcher.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Vitest on Node.js 24 (Ubuntu 24.04)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: gha-dispatcher
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: gha-dispatcher/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: |
+          npx tsc --noEmit -p tsconfig.json
+          npx tsc --noEmit -p test/tsconfig.json
+
+      - name: Run Vitest
+        run: npx vitest run
+
+      - name: Build with wrangler
+        run: npx wrangler deploy --dry-run --outdir=dist
