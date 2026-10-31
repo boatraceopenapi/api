@@ -32,3 +32,23 @@ jobs:
 
       - name: Audit Composer
         run: composer audit --locked
+
+  audit-npm:
+    name: Audit npm on Node.js ${{ matrix.node-version }} (Ubuntu 24.04)
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        node-version:
+          - '24'
+    steps:
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Audit npm
+        working-directory: gha-dispatcher
+        run: npm audit --package-lock-only
