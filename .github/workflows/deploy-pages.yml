@@ -25,7 +25,7 @@ jobs:
     timeout-minutes: 15
     environment:
       name: github-pages
-      url: ${{ steps.deployment-final.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -40,33 +40,8 @@ jobs:
         with:
           path: docs
 
+      # 同じジョブ内ではリトライしない。デプロイ ID はコミットの SHA なので、作り直しても
+      # 時間切れで取り消した同じデプロイを見るだけになる。次の push が新しい SHA でやり直す
       - name: Deploy to pages
         id: deployment
         uses: actions/deploy-pages@v5
-        continue-on-error: true
-
-      - name: Wait before retry
-        if: steps.deployment.outcome == 'failure'
-        run: |
-          echo "::warning::Initial deploy failed. Retrying in 15s..."
-          sleep 15
-
-      - name: Deploy to pages (retry)
-        id: deployment-retry
-        if: steps.deployment.outcome == 'failure'
-        uses: actions/deploy-pages@v5
-
-      - name: Set final deployment result
-        id: deployment-final
-        if: always()
-        run: |
-          if [ "${{ steps.deployment.outcome }}" == "success" ]; then
-            echo "page_url=${{ steps.deployment.outputs.page_url }}" >> "$GITHUB_OUTPUT"
-            echo "Deployment succeeded on first attempt."
-          elif [ "${{ steps.deployment-retry.outcome }}" == "success" ]; then
-            echo "page_url=${{ steps.deployment-retry.outputs.page_url }}" >> "$GITHUB_OUTPUT"
-            echo "Deployment succeeded on retry."
-          else
-            echo "::error::Deployment failed after retry."
-            exit 1
-          fi
