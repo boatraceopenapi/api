@@ -18,9 +18,9 @@ final class SynchronizerTest extends TestCase
      * @return void
      */
     #[Test]
-    public function scrapedProgramWithClosedAtIsUsable(): void
+    public function raceWithClosedAtIsUsable(): void
     {
-        $this->assertTrue(Synchronizer::isUsableProgram([
+        $this->assertTrue(Synchronizer::isUsableRace([
             'date' => '2026-11-21',
             'stadium_number' => 2,
             'race_number' => 1,
@@ -32,9 +32,9 @@ final class SynchronizerTest extends TestCase
      * @return void
      */
     #[Test]
-    public function scrapedProgramWithoutClosedAtIsNotUsable(): void
+    public function raceWithNullClosedAtIsNotUsable(): void
     {
-        $this->assertFalse(Synchronizer::isUsableProgram([
+        $this->assertFalse(Synchronizer::isUsableRace([
             'date' => '2026-11-21',
             'stadium_number' => 2,
             'race_number' => 1,
@@ -46,9 +46,9 @@ final class SynchronizerTest extends TestCase
      * @return void
      */
     #[Test]
-    public function scrapedProgramMissingClosedAtIsNotUsable(): void
+    public function raceMissingClosedAtIsNotUsable(): void
     {
-        $this->assertFalse(Synchronizer::isUsableProgram([
+        $this->assertFalse(Synchronizer::isUsableRace([
             'date' => '2026-11-21',
             'stadium_number' => 2,
             'race_number' => 1,

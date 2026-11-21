@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace BOA\API;
 
 use Carbon\CarbonImmutable as Carbon;
+use Closure;
 use DateTimeInterface;
 use RuntimeException;
+use stdClass;
 use Symfony\Component\BrowserKit\HttpBrowser;
 use Symfony\Component\BrowserKit\Response;
 use Throwable;
@@ -19,7 +21,7 @@ use ValueError;
  * @author shimomo
  *
  * @psalm-type Race = array<array-key, mixed>
- * @psalm-type Payload = array{programs: array{stadiums?: array<int, array{races?: array<int, Race>}>}}
+ * @psalm-type Payload = array{programs: array{stadiums?: array<int<1, 24>, array{races?: array<int<1, 12>, Race>}>}}
  */
 final class Synchronizer
 {
@@ -63,6 +65,13 @@ final class Synchronizer
     private const int MINUTES_AFTER_CLOSE_UNTIL_RESULT = 120;
 
     /**
+     * 指定した日の全レース（出走表・直前情報・結果）を取り直し、その日のファイルを作り直す。
+     * 当日なら today.json も書き換える。0 時に前日分の確定と当日分の作成に使うほか、
+     * 当日分のファイルが無いときは syncUpcoming() からも呼ばれる。
+     *
+     * 締切時刻（closed_at）が取れなかったレースは、取得に失敗したものとして既存のファイルのデータを残す。
+     * 全レースで取れなかったときは、取得そのものが失敗しているので保存せずに例外を投げる
+     *
      * @param \DateTimeInterface|non-empty-string $date
      * @param non-empty-string $version
      * @return void
@@ -72,18 +81,12 @@ final class Synchronizer
     {
         date_default_timezone_set(self::TIMEZONE);
 
-        $startedAt = microtime(true);
-
         self::assertSupportedVersion($version);
 
         $date = Carbon::parse($date, self::TIMEZONE);
-        $dateYmd = $date->format('Ymd');
 
-        ActionsLogger::startGroup("Synchronizer::sync [{$dateYmd} / {$version}]");
-        ActionsLogger::info("date={$date->toDateString()} version={$version}");
-
-        try {
-            $payload = ['programs' => []];
+        self::runInGroup('sync', $date, $version, static function () use ($date, $version): void {
+            $dateYmd = $date->format('Ymd');
 
             Scraper::setMinCallIntervalSeconds(1.0);
 
@@ -91,12 +94,13 @@ final class Synchronizer
             $preview = BatchScraper::scrapePreview($date);
             $result = BatchScraper::scrapeResult($date);
 
+            $payload = ['programs' => []];
             $raceCount = 0;
 
             foreach ($program as $stadiumNumber => $races) {
                 foreach ($races as $raceNumber => $race) {
-                    $race['preview'] = $preview[$stadiumNumber][$raceNumber] ?? new \stdClass();
-                    $race['result'] = $result[$stadiumNumber][$raceNumber] ?? new \stdClass();
+                    $race['preview'] = $preview[$stadiumNumber][$raceNumber] ?? new stdClass();
+                    $race['result'] = $result[$stadiumNumber][$raceNumber] ?? new stdClass();
 
                     $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber] = $race;
 
@@ -108,7 +112,7 @@ final class Synchronizer
             ActionsLogger::info("scraped: stadiums={$stadiumCount} races={$raceCount}");
 
             if ($payload['programs'] === []) {
-                ActionsLogger::warning("no programs found for {$dateYmd} ({$version}); skipped saving");
+                ActionsLogger::warning("no programs found; skipped saving: date={$dateYmd} version={$version}");
 
                 return;
             }
@@ -117,35 +121,33 @@ final class Synchronizer
 
             if ($usableCount === 0) {
                 throw new RuntimeException(
-                    "no race had closed_at for {$dateYmd} ({$version}); refused to save over existing data"
+                    "no race had closed_at; refused to save over existing data: date={$dateYmd} version={$version}"
                 );
             }
 
             if ($usableCount < $raceCount) {
                 $payload = self::keepExistingRaces($payload, self::loadExisting($date, $version));
-                $keptCount = self::countUsableRaces($payload) - $usableCount;
                 $unusableCount = $raceCount - $usableCount;
+                $keptCount = self::countUsableRaces($payload) - $usableCount;
 
                 ActionsLogger::warning(
-                    "races without closed_at: {$unusableCount} (kept existing data for {$keptCount})"
+                    "races without closed_at; kept existing data: date={$dateYmd} unusable={$unusableCount} kept={$keptCount}"
                 );
             }
 
             self::persist($date, $version, $payload);
 
-            ActionsLogger::info("saved: {$stadiumCount} stadiums / {$raceCount} races");
-        } catch (Throwable $exception) {
-            ActionsLogger::error("sync failed: {$exception->getMessage()}");
-
-            throw $exception;
-        } finally {
-            $elapsed = number_format(microtime(true) - $startedAt, 3);
-            ActionsLogger::info("elapsed={$elapsed}s");
-            ActionsLogger::endGroup();
-        }
+            ActionsLogger::info("saved: stadiums={$stadiumCount} races={$raceCount}");
+        });
     }
 
     /**
+     * 締切が近いレースと、締切後まだ結果が入っていないレースだけを取り直して保存する（範囲は shouldRefresh()）。
+     * 日中 10 分おきに呼ばれる。
+     *
+     * 出走表の締切時刻が取れなかったレースは、取得に失敗したものとして既存のデータを残し、次の回に取り直す。
+     * 当日分のファイルが無いとき（0 時の sync() が作れなかった日）は、代わりに sync() で作る
+     *
      * @param \DateTimeInterface|non-empty-string $date
      * @param non-empty-string $version
      * @return void
@@ -155,42 +157,28 @@ final class Synchronizer
     {
         date_default_timezone_set(self::TIMEZONE);
 
-        $startedAt = microtime(true);
-
         self::assertSupportedVersion($version);
 
         $date = Carbon::parse($date, self::TIMEZONE);
-        $dateYmd = $date->format('Ymd');
 
         if (!file_exists(self::resolvePath($date, $version))) {
-            // 0 時の sync() が当日分を作れなかった日。このままだと today.json が前日のまま 1 日残るので、ここで作る。
+            // このままだと today.json が前日のまま 1 日残るので、ここで作る。
             // sync() も自分のロググループを開くので、グループの外で呼ぶ
-            ActionsLogger::warning("source file not found for {$dateYmd} ({$version}); falling back to sync()");
+            ActionsLogger::warning(
+                "source file not found; falling back to sync(): date={$date->format('Ymd')} version={$version}"
+            );
 
             self::sync($date, $version);
 
             return;
         }
 
-        ActionsLogger::startGroup("Synchronizer::syncUpcoming [{$dateYmd} / {$version}]");
-        ActionsLogger::info("date={$date->toDateString()} version={$version}");
-
-        try {
+        self::runInGroup('syncUpcoming', $date, $version, static function () use ($date, $version): void {
             try {
-                /**
-                 * @var array{
-                 *   programs: array{
-                 *     stadiums?: array<int<1, 24>, array{
-                 *       races?: array<int<1, 12>, array<non-empty-string, mixed>>,
-                 *     }>,
-                 *   },
-                 * } $payload
-                 */
+                /** @var Payload $payload */
                 $payload = Storage::load(self::resolvePath($date, $version));
             } catch (RuntimeException $exception) {
-                ActionsLogger::warning(
-                    "source file not found for {$dateYmd} ({$version}); skipped: {$exception->getMessage()}"
-                );
+                ActionsLogger::warning("source file could not be loaded; skipped: message={$exception->getMessage()}");
 
                 return;
             }
@@ -202,21 +190,17 @@ final class Synchronizer
 
             foreach (($payload['programs']['stadiums'] ?? []) as $stadiumNumber => $stadium) {
                 foreach (($stadium['races'] ?? []) as $raceNumber => $race) {
-                    /**
-                     * @var array{
-                     *   closed_at: ?non-empty-string,
-                     *   preview: array<non-empty-string, mixed>,
-                     *   result: array<non-empty-string, mixed>,
-                     * } $race
-                     */
-
                     $closedAt = $race['closed_at'] ?? null;
+                    $existingPreview = self::arrayOrEmpty($race['preview'] ?? null);
+                    $existingResult = self::arrayOrEmpty($race['result'] ?? null);
 
-                    if ($closedAt === null || !self::shouldRefresh($closedAt, $race['result'])) {
+                    if (!is_string($closedAt) || $closedAt === '' || !self::shouldRefresh($closedAt, $existingResult)) {
                         $skippedCount++;
 
                         continue;
                     }
+
+                    $context = "stadium={$stadiumNumber} race={$raceNumber} closed_at={$closedAt}";
 
                     try {
                         // 空振りしたときに応答の中身をログに出せるよう、ブラウザを自分で作って渡す
@@ -224,19 +208,15 @@ final class Synchronizer
                         $httpBrowser = HttpBrowserFactory::create();
                         $program = Scraper::scrapeProgram($date, $stadiumNumber, $raceNumber, $httpBrowser);
                     } catch (ValueError $exception) {
-                        ActionsLogger::warning(
-                            "program scrape failed: stadium={$stadiumNumber} race={$raceNumber} closed_at={$closedAt} message={$exception->getMessage()}"
-                        );
+                        ActionsLogger::warning("program scrape failed; skipped: {$context} message={$exception->getMessage()}");
 
                         $skippedCount++;
 
                         continue;
                     }
 
-                    if (!self::isUsableProgram($program)) {
-                        ActionsLogger::warning(
-                            "program scrape returned no closed_at: stadium={$stadiumNumber} race={$raceNumber} closed_at={$closedAt} keeping existing data"
-                        );
+                    if (!self::isUsableRace($program)) {
+                        ActionsLogger::warning("program scrape returned no closed_at; kept existing data: {$context}");
                         ActionsLogger::warning('program response: ' . self::describeLastResponse($httpBrowser));
 
                         $skippedCount++;
@@ -247,23 +227,17 @@ final class Synchronizer
                     try {
                         $preview = Scraper::scrapePreview($date, $stadiumNumber, $raceNumber);
                     } catch (ValueError $exception) {
-                        ActionsLogger::warning(
-                            "preview scrape failed: stadium={$stadiumNumber} race={$raceNumber} closed_at={$closedAt} continuing without preview: {$exception->getMessage()}"
-                        );
+                        ActionsLogger::warning("preview scrape failed; kept existing preview: {$context} message={$exception->getMessage()}");
 
-                        /** @var array<non-empty-string, mixed> $preview */
-                        $preview = $race['preview'];
+                        $preview = $existingPreview;
                     }
 
                     try {
                         $result = Scraper::scrapeResult($date, $stadiumNumber, $raceNumber);
                     } catch (ValueError $exception) {
-                        ActionsLogger::warning(
-                            "result scrape failed: stadium={$stadiumNumber} race={$raceNumber} closed_at={$closedAt} continuing without result: {$exception->getMessage()}"
-                        );
+                        ActionsLogger::warning("result scrape failed; kept existing result: {$context} message={$exception->getMessage()}");
 
-                        /** @var array<non-empty-string, mixed> $result */
-                        $result = $race['result'];
+                        $result = $existingResult;
                     }
 
                     $program['preview'] = $preview;
@@ -273,40 +247,130 @@ final class Synchronizer
 
                     $updatedCount++;
 
-                    ActionsLogger::info(
-                        "updated: stadium={$stadiumNumber} race={$raceNumber} closed_at={$closedAt}"
-                    );
+                    ActionsLogger::info("updated: {$context}");
                 }
             }
 
-            ActionsLogger::info("updated={$updatedCount} skipped={$skippedCount}");
-
             self::persist($date, $version, $payload);
 
-            ActionsLogger::info('saved');
-        } catch (Throwable $exception) {
-            ActionsLogger::error("syncUpcoming failed: {$exception->getMessage()}");
-
-            throw $exception;
-        } finally {
-            $elapsed = number_format(microtime(true) - $startedAt, 3);
-            ActionsLogger::info("elapsed={$elapsed}s");
-            ActionsLogger::endGroup();
-        }
+            ActionsLogger::info("saved: updated={$updatedCount} skipped={$skippedCount}");
+        });
     }
 
     /**
      * 出走表ページとして読めない応答を受けると、スクレイパーは例外を投げずに全項目 null を返す。
      * そのまま保存すると既存のデータが消え、closed_at が null になったレースは以後取り直されないので、
-     * 締切時刻が取れなかった出走表は使わない
+     * 締切時刻が取れなかったレースのデータは使わない
      *
      * @internal
-     * @param array<array-key, mixed> $program
+     * @param Race $race
      * @return bool
      */
-    public static function isUsableProgram(array $program): bool
+    public static function isUsableRace(array $race): bool
     {
-        return ($program['closed_at'] ?? null) !== null;
+        return ($race['closed_at'] ?? null) !== null;
+    }
+
+    /**
+     * @internal
+     * @param Payload $payload
+     * @return int<0, max>
+     */
+    public static function countUsableRaces(array $payload): int
+    {
+        $count = 0;
+
+        foreach (($payload['programs']['stadiums'] ?? []) as $stadium) {
+            foreach (($stadium['races'] ?? []) as $race) {
+                if (self::isUsableRace($race)) {
+                    $count++;
+                }
+            }
+        }
+
+        return $count;
+    }
+
+    /**
+     * 締切時刻が取れなかったレースを、既存のファイルにある使えるデータで置き換える。
+     * 0 時の同期は前日分も作り直すので、取得に失敗した回が確定済みのデータを消さないようにする
+     *
+     * @internal
+     * @param Payload $payload
+     * @param Payload|array{} $existing
+     * @return Payload
+     */
+    public static function keepExistingRaces(array $payload, array $existing): array
+    {
+        foreach (($payload['programs']['stadiums'] ?? []) as $stadiumNumber => $stadium) {
+            foreach (($stadium['races'] ?? []) as $raceNumber => $race) {
+                $existingRace = $existing['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber] ?? null;
+
+                if (self::isUsableRace($race) || $existingRace === null || !self::isUsableRace($existingRace)) {
+                    continue;
+                }
+
+                $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber] = $existingRace;
+            }
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @param \DateTimeInterface $date
+     * @param non-empty-string $version
+     * @return Payload|array{}
+     */
+    private static function loadExisting(DateTimeInterface $date, string $version): array
+    {
+        $path = self::resolvePath($date, $version);
+
+        if (!file_exists($path)) {
+            return [];
+        }
+
+        try {
+            /** @var Payload */
+            return Storage::load($path);
+        } catch (RuntimeException $exception) {
+            ActionsLogger::warning(
+                "existing file could not be loaded; nothing to keep: message={$exception->getMessage()}"
+            );
+
+            return [];
+        }
+    }
+
+    /**
+     * 締切の MINUTES_BEFORE_CLOSE 分前〜MINUTES_AFTER_CLOSE 分後のレースは、直前情報と結果を取るため必ず取り直す。
+     * その後も MINUTES_AFTER_CLOSE_UNTIL_RESULT 分後までは、結果（3 連単の払戻）が入っていなければ取り直す
+     *
+     * @param non-empty-string $closedAt
+     * @param array<array-key, mixed> $result
+     * @return bool
+     */
+    private static function shouldRefresh(string $closedAt, array $result): bool
+    {
+        $closedAt = Carbon::parse($closedAt, self::TIMEZONE);
+        $now = Carbon::now(self::TIMEZONE);
+
+        if ($closedAt->between(
+            $now->subMinutes(self::MINUTES_AFTER_CLOSE),
+            $now->addMinutes(self::MINUTES_BEFORE_CLOSE),
+        )) {
+            return true;
+        }
+
+        if (!$closedAt->between(
+            $now->subMinutes(self::MINUTES_AFTER_CLOSE_UNTIL_RESULT),
+            $now,
+        )) {
+            return false;
+        }
+
+        /** @var array{payouts?: array{trifecta?: list<mixed>}} $result */
+        return ($result['payouts']['trifecta'] ?? []) === [];
     }
 
     /**
@@ -370,6 +434,17 @@ final class Synchronizer
     }
 
     /**
+     * 保存済みのファイルでは、直前情報や結果がまだ無いレースは空の配列になっている
+     *
+     * @param mixed $value
+     * @return array<array-key, mixed>
+     */
+    private static function arrayOrEmpty(mixed $value): array
+    {
+        return is_array($value) ? $value : [];
+    }
+
+    /**
      * @param string $text
      * @return string
      */
@@ -379,71 +454,33 @@ final class Synchronizer
     }
 
     /**
-     * @internal
-     * @param Payload $payload
-     * @return int<0, max>
-     */
-    public static function countUsableRaces(array $payload): int
-    {
-        $count = 0;
-
-        foreach (($payload['programs']['stadiums'] ?? []) as $stadium) {
-            foreach (($stadium['races'] ?? []) as $race) {
-                if (self::isUsableProgram($race)) {
-                    $count++;
-                }
-            }
-        }
-
-        return $count;
-    }
-
-    /**
-     * 締切時刻が取れなかったレースを、既存のファイルにある使えるデータで置き換える。
-     * 0 時の同期は前日分も作り直すので、取得に失敗した回が確定済みのデータを消さないようにする
+     * sync() と syncUpcoming() の共通の外枠。ロググループを開き、失敗したらログに出して投げ直し、
+     * 最後に経過時間を出してグループを閉じる
      *
-     * @internal
-     * @param Payload $payload
-     * @param Payload|array{} $existing
-     * @return Payload
-     */
-    public static function keepExistingRaces(array $payload, array $existing): array
-    {
-        foreach (($payload['programs']['stadiums'] ?? []) as $stadiumNumber => $stadium) {
-            foreach (($stadium['races'] ?? []) as $raceNumber => $race) {
-                $existingRace = $existing['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber] ?? null;
-
-                if (self::isUsableProgram($race) || $existingRace === null || !self::isUsableProgram($existingRace)) {
-                    continue;
-                }
-
-                $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber] = $existingRace;
-            }
-        }
-
-        return $payload;
-    }
-
-    /**
+     * @param non-empty-string $name
      * @param \DateTimeInterface $date
      * @param non-empty-string $version
-     * @return Payload|array{}
+     * @param \Closure(): void $callback
+     * @return void
      */
-    private static function loadExisting(DateTimeInterface $date, string $version): array
+    private static function runInGroup(string $name, DateTimeInterface $date, string $version, Closure $callback): void
     {
-        $path = self::resolvePath($date, $version);
+        $startedAt = microtime(true);
+        $dateYmd = $date->format('Ymd');
 
-        if (!file_exists($path)) {
-            return [];
-        }
+        ActionsLogger::startGroup("Synchronizer::{$name} [{$dateYmd} / {$version}]");
+        ActionsLogger::info("date={$date->format('Y-m-d')} version={$version}");
 
         try {
-            /** @var Payload */
-            return Storage::load($path);
-        } catch (RuntimeException $exception) {
-            ActionsLogger::warning("existing file could not be loaded; nothing to keep: {$exception->getMessage()}");
+            $callback();
+        } catch (Throwable $exception) {
+            ActionsLogger::error("{$name} failed: date={$dateYmd} version={$version} message={$exception->getMessage()}");
 
-            return [];
+            throw $exception;
+        } finally {
+            $elapsed = number_format(microtime(true) - $startedAt, 3);
+            ActionsLogger::info("elapsed={$elapsed}s");
+            ActionsLogger::endGroup();
         }
     }
 
@@ -457,34 +494,6 @@ final class Synchronizer
         if (!in_array($version, self::SUPPORTED_VERSIONS, true)) {
             throw new RuntimeException("Unsupported version: {$version}");
         }
-    }
-
-    /**
-     * @param non-empty-string $closedAt
-     * @param array<non-empty-string, mixed> $result
-     * @return bool
-     */
-    private static function shouldRefresh(string $closedAt, array $result): bool
-    {
-        $closedAt = Carbon::parse($closedAt, self::TIMEZONE);
-        $now = Carbon::now(self::TIMEZONE);
-
-        if ($closedAt->between(
-            $now->subMinutes(self::MINUTES_AFTER_CLOSE),
-            $now->addMinutes(self::MINUTES_BEFORE_CLOSE),
-        )) {
-            return true;
-        }
-
-        if (!$closedAt->between(
-            $now->subMinutes(self::MINUTES_AFTER_CLOSE_UNTIL_RESULT),
-            $now,
-        )) {
-            return false;
-        }
-
-        /** @var array{payouts?: array{trifecta?: list<mixed>}} $result */
-        return ($result['payouts']['trifecta'] ?? []) === [];
     }
 
     /**
