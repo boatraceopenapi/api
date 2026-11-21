@@ -7,8 +7,11 @@ namespace BOA\API;
 use Carbon\CarbonImmutable as Carbon;
 use DateTimeInterface;
 use RuntimeException;
+use Symfony\Component\BrowserKit\HttpBrowser;
+use Symfony\Component\BrowserKit\Response;
 use Throwable;
 use Turnmark\Scraper\BatchScraper;
+use Turnmark\Scraper\Factories\HttpBrowserFactory;
 use Turnmark\Scraper\Scraper;
 use ValueError;
 
@@ -216,7 +219,10 @@ final class Synchronizer
                     }
 
                     try {
-                        $program = Scraper::scrapeProgram($date, $stadiumNumber, $raceNumber);
+                        // 空振りしたときに応答の中身をログに出せるよう、ブラウザを自分で作って渡す
+                        // （中身はスクレイパーが既定で作るものと同じで、レースごとに作り直す）
+                        $httpBrowser = HttpBrowserFactory::create();
+                        $program = Scraper::scrapeProgram($date, $stadiumNumber, $raceNumber, $httpBrowser);
                     } catch (ValueError $exception) {
                         ActionsLogger::warning(
                             "program scrape failed: stadium={$stadiumNumber} race={$raceNumber} closed_at={$closedAt} message={$exception->getMessage()}"
@@ -231,6 +237,7 @@ final class Synchronizer
                         ActionsLogger::warning(
                             "program scrape returned no closed_at: stadium={$stadiumNumber} race={$raceNumber} closed_at={$closedAt} keeping existing data"
                         );
+                        ActionsLogger::warning('program response: ' . self::describeLastResponse($httpBrowser));
 
                         $skippedCount++;
 
@@ -300,6 +307,75 @@ final class Synchronizer
     public static function isUsableProgram(array $program): bool
     {
         return ($program['closed_at'] ?? null) !== null;
+    }
+
+    /**
+     * 空振りした応答の中身を 1 行にまとめる。公式サイトが何を返しているのか（エラー、待機ページ、別のページ）を
+     * 後から確かめるためのもので、2026-11-18 からの空振りの原因はまだ分かっていない
+     *
+     * @internal
+     * @param \Symfony\Component\BrowserKit\Response $response
+     * @param string $uri
+     * @return string
+     */
+    public static function describeResponse(Response $response, string $uri): string
+    {
+        $content = $response->getContent();
+
+        $parts = [
+            "status={$response->getStatusCode()}",
+            "url={$uri}",
+        ];
+
+        $title = preg_match('/<title[^>]*>(.*?)<\/title>/is', $content, $matches) === 1
+            ? self::squash(html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'))
+            : '';
+
+        $parts[] = $title === '' ? 'title=(none)' : 'title="' . $title . '"';
+        $parts[] = 'length=' . strlen($content);
+
+        foreach (['content-type', 'server', 'retry-after', 'location'] as $name) {
+            $value = $response->getHeader($name);
+
+            if (is_string($value) && $value !== '') {
+                $parts[] = "{$name}=\"{$value}\"";
+            }
+        }
+
+        if ($title === '') {
+            $body = self::squash(strip_tags($content));
+
+            if ($body !== '') {
+                $parts[] = 'body="' . (mb_strlen($body) > 200 ? mb_substr($body, 0, 200) . '…' : $body) . '"';
+            }
+        }
+
+        return implode(' ', $parts);
+    }
+
+    /**
+     * @param \Symfony\Component\BrowserKit\HttpBrowser $httpBrowser
+     * @return string
+     */
+    private static function describeLastResponse(HttpBrowser $httpBrowser): string
+    {
+        try {
+            /** @var \Symfony\Component\BrowserKit\Response $response */
+            $response = $httpBrowser->getInternalResponse();
+
+            return self::describeResponse($response, $httpBrowser->getHistory()->current()->getUri());
+        } catch (Throwable $exception) {
+            return "(could not read the response: {$exception->getMessage()})";
+        }
+    }
+
+    /**
+     * @param string $text
+     * @return string
+     */
+    private static function squash(string $text): string
+    {
+        return trim((string) preg_replace('/\s+/u', ' ', $text));
     }
 
     /**

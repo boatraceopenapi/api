@@ -7,6 +7,7 @@ namespace BOA\API\Tests;
 use BOA\API\Synchronizer;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\BrowserKit\Response;
 
 /**
  * @author shimomo
@@ -115,6 +116,56 @@ final class SynchronizerTest extends TestCase
         $payload = self::payload([2 => [1 => self::race(2, 1, null)]]);
 
         $this->assertSame($payload, Synchronizer::keepExistingRaces($payload, []));
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function describeResponseShowsStatusUrlTitleAndHeaders(): void
+    {
+        $response = new Response(
+            '<html><head><title> アクセスが集中しています </title></head><body>x</body></html>',
+            503,
+            ['Content-Type' => 'text/html; charset=UTF-8', 'Server' => 'nginx', 'Retry-After' => '60']
+        );
+
+        $this->assertSame(
+            'status=503 url=https://www.boatrace.jp/owpc/pc/race/racelist?hd=20261121&jcd=02&rno=1'
+            . ' title="アクセスが集中しています" length=93 content-type="text/html; charset=UTF-8"'
+            . ' server="nginx" retry-after="60"',
+            Synchronizer::describeResponse(
+                $response,
+                'https://www.boatrace.jp/owpc/pc/race/racelist?hd=20261121&jcd=02&rno=1'
+            )
+        );
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function describeResponseShowsBodySnippetWhenTitleIsMissing(): void
+    {
+        $response = new Response("<html><body>\n  Just a   moment...\n</body></html>", 200, []);
+
+        $this->assertSame(
+            'status=200 url=https://example.test/ title=(none) length=48 body="Just a moment..."',
+            Synchronizer::describeResponse($response, 'https://example.test/')
+        );
+    }
+
+    /**
+     * @return void
+     */
+    #[Test]
+    public function describeResponseTruncatesLongBodySnippet(): void
+    {
+        $response = new Response(str_repeat('あ', 300), 200, []);
+
+        $description = Synchronizer::describeResponse($response, 'https://example.test/');
+
+        $this->assertStringContainsString('body="' . str_repeat('あ', 200) . '…"', $description);
     }
 
     /**
