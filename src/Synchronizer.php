@@ -196,6 +196,16 @@ final class Synchronizer
                         continue;
                     }
 
+                    if (!self::isUsableProgram($program)) {
+                        ActionsLogger::warning(
+                            "program scrape returned no closed_at: stadium={$stadiumNumber} race={$raceNumber} closed_at={$closedAt} keeping existing data"
+                        );
+
+                        $skippedCount++;
+
+                        continue;
+                    }
+
                     try {
                         $preview = Scraper::scrapePreview($date, $stadiumNumber, $raceNumber);
                     } catch (ValueError $exception) {
@@ -245,6 +255,20 @@ final class Synchronizer
             ActionsLogger::info("elapsed={$elapsed}s");
             ActionsLogger::endGroup();
         }
+    }
+
+    /**
+     * 出走表ページとして読めない応答を受けると、スクレイパーは例外を投げずに全項目 null を返す。
+     * そのまま保存すると既存のデータが消え、closed_at が null になったレースは以後取り直されないので、
+     * 締切時刻が取れなかった出走表は使わない
+     *
+     * @internal
+     * @param array<array-key, mixed> $program
+     * @return bool
+     */
+    public static function isUsableProgram(array $program): bool
+    {
+        return ($program['closed_at'] ?? null) !== null;
     }
 
     /**
