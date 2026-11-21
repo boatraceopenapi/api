@@ -14,6 +14,9 @@ use ValueError;
 
 /**
  * @author shimomo
+ *
+ * @psalm-type Race = array<array-key, mixed>
+ * @psalm-type Payload = array{programs: array{stadiums?: array<int, array{races?: array<int, Race>}>}}
  */
 final class Synchronizer
 {
@@ -107,6 +110,24 @@ final class Synchronizer
                 return;
             }
 
+            $usableCount = self::countUsableRaces($payload);
+
+            if ($usableCount === 0) {
+                throw new RuntimeException(
+                    "no race had closed_at for {$dateYmd} ({$version}); refused to save over existing data"
+                );
+            }
+
+            if ($usableCount < $raceCount) {
+                $payload = self::keepExistingRaces($payload, self::loadExisting($date, $version));
+                $keptCount = self::countUsableRaces($payload) - $usableCount;
+                $unusableCount = $raceCount - $usableCount;
+
+                ActionsLogger::warning(
+                    "races without closed_at: {$unusableCount} (kept existing data for {$keptCount})"
+                );
+            }
+
             self::persist($date, $version, $payload);
 
             ActionsLogger::info("saved: {$stadiumCount} stadiums / {$raceCount} races");
@@ -137,6 +158,16 @@ final class Synchronizer
 
         $date = Carbon::parse($date, self::TIMEZONE);
         $dateYmd = $date->format('Ymd');
+
+        if (!file_exists(self::resolvePath($date, $version))) {
+            // 0 時の sync() が当日分を作れなかった日。このままだと today.json が前日のまま 1 日残るので、ここで作る。
+            // sync() も自分のロググループを開くので、グループの外で呼ぶ
+            ActionsLogger::warning("source file not found for {$dateYmd} ({$version}); falling back to sync()");
+
+            self::sync($date, $version);
+
+            return;
+        }
 
         ActionsLogger::startGroup("Synchronizer::syncUpcoming [{$dateYmd} / {$version}]");
         ActionsLogger::info("date={$date->toDateString()} version={$version}");
@@ -269,6 +300,75 @@ final class Synchronizer
     public static function isUsableProgram(array $program): bool
     {
         return ($program['closed_at'] ?? null) !== null;
+    }
+
+    /**
+     * @internal
+     * @param Payload $payload
+     * @return int<0, max>
+     */
+    public static function countUsableRaces(array $payload): int
+    {
+        $count = 0;
+
+        foreach (($payload['programs']['stadiums'] ?? []) as $stadium) {
+            foreach (($stadium['races'] ?? []) as $race) {
+                if (self::isUsableProgram($race)) {
+                    $count++;
+                }
+            }
+        }
+
+        return $count;
+    }
+
+    /**
+     * 締切時刻が取れなかったレースを、既存のファイルにある使えるデータで置き換える。
+     * 0 時の同期は前日分も作り直すので、取得に失敗した回が確定済みのデータを消さないようにする
+     *
+     * @internal
+     * @param Payload $payload
+     * @param Payload|array{} $existing
+     * @return Payload
+     */
+    public static function keepExistingRaces(array $payload, array $existing): array
+    {
+        foreach (($payload['programs']['stadiums'] ?? []) as $stadiumNumber => $stadium) {
+            foreach (($stadium['races'] ?? []) as $raceNumber => $race) {
+                $existingRace = $existing['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber] ?? null;
+
+                if (self::isUsableProgram($race) || $existingRace === null || !self::isUsableProgram($existingRace)) {
+                    continue;
+                }
+
+                $payload['programs']['stadiums'][$stadiumNumber]['races'][$raceNumber] = $existingRace;
+            }
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @param \DateTimeInterface $date
+     * @param non-empty-string $version
+     * @return Payload|array{}
+     */
+    private static function loadExisting(DateTimeInterface $date, string $version): array
+    {
+        $path = self::resolvePath($date, $version);
+
+        if (!file_exists($path)) {
+            return [];
+        }
+
+        try {
+            /** @var Payload */
+            return Storage::load($path);
+        } catch (RuntimeException $exception) {
+            ActionsLogger::warning("existing file could not be loaded; nothing to keep: {$exception->getMessage()}");
+
+            return [];
+        }
     }
 
     /**

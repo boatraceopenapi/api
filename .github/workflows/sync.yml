@@ -76,6 +76,8 @@ jobs:
 
       - name: Validate JSON files
         id: validate
+        # 前日分・当日分の片方が失敗しても、成功した方はコミットする（ジョブは失敗のまま）
+        if: ${{ !cancelled() }}
         run: |
           set -e
           FILES=$(
@@ -109,7 +111,7 @@ jobs:
           done < /tmp/changed_files.txt
 
       - name: Commit JSON files
-        if: steps.validate.outputs.files_changed == 'true'
+        if: ${{ !cancelled() && steps.validate.outputs.files_changed == 'true' }}
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
