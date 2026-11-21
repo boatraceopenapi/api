@@ -7,6 +7,11 @@ on:
     paths:
       - 'docs/v1/**.json'
   workflow_dispatch:
+    inputs:
+      retry:
+        description: '失敗したデプロイの何回目のやり直しか（retry ジョブが渡す。手動なら 0 のまま）'
+        type: number
+        default: 0
 
 # デプロイは公開サイズに比例して長くなる（3.4 GiB で約 160 秒）。実行中を取り消すと、
 # 起動間隔より長くなったときに 1 回も終わらなくなるので、最後まで終えてから最新の 1 件を流す
@@ -41,7 +46,31 @@ jobs:
           path: docs
 
       # 同じジョブ内ではリトライしない。デプロイ ID はコミットの SHA なので、作り直しても
-      # 時間切れで取り消した同じデプロイを見るだけになる。次の push が新しい SHA でやり直す
+      # 時間切れで取り消した同じデプロイを見るだけになる。失敗したときは retry ジョブが別の run でやり直す
       - name: Deploy to pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+  # 失敗の大半は GitHub 側の一時的なエラー（Fetching artifact metadata failed など）で、デプロイを作る前に止まっている。
+  # 次の push を待つと、夜間は朝まで公開中の today.json が古いまま残り、gha-dispatcher が Sync Upcoming を起動しない
+  # （2026-11-22 0:17 に発生）。少し待ってから新しい run で最新の gh-pages をデプロイし直す。やり直しは 3 回まで
+  retry:
+    name: Retry failed deploy (Ubuntu 24.04)
+    needs: deploy-pages
+    if: ${{ failure() && (inputs.retry || 0) < 3 }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RETRY: ${{ inputs.retry || 0 }}
+    steps:
+      - name: Wait before retrying
+        run: sleep 180
+
+      - name: Dispatch Deploy Pages again
+        run: |
+          next=$((RETRY + 1))
+          echo "::warning::deploy failed; dispatching retry ${next}/3"
+          gh workflow run deploy-pages.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}" -f retry="${next}"
