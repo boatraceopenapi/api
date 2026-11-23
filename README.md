@@ -32,7 +32,7 @@
 
 ## 📝 概要
 
-この API では、ボートレース（競艇）のデータを取得できます。データは GitHub Pages 上で公開されており、JSON 形式で提供されます。
+本 API では、ボートレース（競艇）のデータを取得できます。データは GitHub Pages 上で公開されており、JSON 形式で提供されます。
 
 | 項目 | 内容 |
 |---|---|
@@ -73,7 +73,7 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 ## 💡 サンプル
 
 - 2026年05月01日のデータ: [https://boatraceopenapi.github.io/api/v1/2026/20260501.json](https://boatraceopenapi.github.io/api/v1/2026/20260501.json)
-- 当日のデータ: [https://boatraceopenapi.github.io/api/v1/today.json](https://boatraceopenapi.github.io/api/v1/today.json)
+- 本日のデータ: [https://boatraceopenapi.github.io/api/v1/today.json](https://boatraceopenapi.github.io/api/v1/today.json)
 
 各言語でのデータ取得・パース例は [docs/v1/example.md](docs/v1/example.md) を参照してください。
 
@@ -102,4 +102,4 @@ https://boatraceopenapi.github.io/api/llms.txt
 
 Boatrace Open API のソースコードは [MIT license](LICENSE) の下で公開されています。
 
-API で配信しているデータは BOAT RACE 公式サイトの公開情報を元にしており、MIT license の対象ではありません。データの権利は本プロジェクトにはないため、データの利用条件（商用利用を含む）についてお答えすることはできません。利用の可否は元データの権利者にご確認ください。
+API で配信しているデータは BOAT RACE 公式サイトの公開情報を基にしており、MIT license の対象ではありません。データの権利は本プロジェクトにはないため、データの利用条件（商用利用を含む）についてお答えすることはできません。利用の可否は元データの権利者にご確認ください。

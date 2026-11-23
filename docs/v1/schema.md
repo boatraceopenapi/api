@@ -1,4 +1,4 @@
-# レスポンススキーマ (v1)
+# レスポンススキーマ（v1）
 
 > 📅 対応期間: 2026年01月01日以降
 
@@ -82,7 +82,7 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 | `distance` | `integer` | ✅ | 距離（メートル） |
 | `day_number` | `integer` | ✅ | 開催日番号（何日目か） |
 
-### 選手情報 (`racers`)
+### 選手情報（`racers`）
 
 枠番（`1`〜`6`）をキーとするオブジェクトです。
 
@@ -114,7 +114,7 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 
 ---
 
-## 直前情報 (`preview`)
+## 直前情報（`preview`）
 
 `programs.stadiums.{stadium_number}.races.{race_number}.preview` 直下のフィールドです。
 
@@ -132,7 +132,7 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 | `air_temperature` | `float` | ✅ | 気温（℃） |
 | `water_temperature` | `float` | ✅ | 水温（℃） |
 
-### 選手情報 (`racers`)
+### 選手情報（`racers`）
 
 枠番（`1`〜`6`）をキーとするオブジェクトです。
 
@@ -152,14 +152,14 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 
 | フィールド | 型 | `_source` | 説明 |
 |---|---|---|---|
-| `number` | `integer` | ✅ | 部品番号（[codes.md](codes.md#交換部品-previewracersentry_numberpartsnumber)） |
+| `number` | `integer` | ✅ | 部品番号（[codes.md](codes.md#交換部品previewracersentry_numberpartsnumber)） |
 | `quantity` | `integer` | — | 個数（表示がない部品は `null`） |
 
 ※ 古いファイルには、このフィールド自体が存在しない場合があります（[データの注意点](#フィールドの有無がファイルによって違う)）。
 
 ---
 
-## 結果 (`result`)
+## 結果（`result`）
 
 `programs.stadiums.{stadium_number}.races.{race_number}.result` 直下のフィールドです。
 
@@ -182,7 +182,7 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 
 ※ 古いファイルには、このフィールド自体が存在しない場合があります（[データの注意点](#フィールドの有無がファイルによって違う)）。
 
-### 選手情報 (`racers`)
+### 選手情報（`racers`）
 
 枠番（`1`〜`6`）をキーとするオブジェクトです。
 
@@ -195,7 +195,7 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 | `number` | `integer` | ✅ | 選手登録番号 |
 | `name` | `string` | — | 選手名 |
 
-### 払戻情報 (`payouts`)
+### 払戻情報（`payouts`）
 
 賭式をキーとする配列です。同じ賭式で複数の払戻がある場合（同着など）、配列に複数の要素が含まれます。
 
@@ -258,7 +258,7 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 
 ### 着順・スタートタイミング
 
-- `place_number` の `7` 以上は着順ではありません（[codes.md](codes.md#着順-place_number)）。
+- `place_number` の `7` 以上は着順ではありません（[codes.md](codes.md#着順place_number)）。
 - `start_timing` はフライングのとき負の値になります（`"F.03"` → `-0.03`）。出遅れ（`"L"`）と欠場のときは `null` です。
 - `course_number` は枠番 `entry_number` と一致するとは限りません（前付けなどで入れ替わることがあり、珍しくありません）。
 - 直前情報の `course_number`・`start_timing` はスタート展示のもので、本番の進入・スタートとは別物です。本番の値は `result` 側を使ってください。
@@ -298,5 +298,5 @@ https://boatraceopenapi.github.io/api/v1/YYYY/YYYYMMDD.json
 
 ### 更新とデータの確定
 
-- 当日のファイルは約 10 分ごとに上書きされ、直前情報と結果が順に埋まっていきます。`today.json` も同じ内容です。
+- 当日のファイルは約 10 分間隔で上書きされ、直前情報と結果が順に埋まっていきます。`today.json` も同じ内容です。
 - 毎日 0 時（JST）に前日分をまとめて取り直します。過去日を取り込む場合は、翌日以降に取得したファイルを使ってください。

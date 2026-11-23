@@ -16,7 +16,7 @@ GitHub Actions の `schedule` cron は GitHub 側の負荷状況により数分�
 | 対象リポジトリ | `boatraceopenapi/api` |
 | dispatch 先 ref | `gh-pages`（デフォルトブランチ） |
 | 認証方式 | GitHub App（Installation Access Token） |
-| GitHub App | `boatraceopenapi` (App ID `4214299`) |
+| GitHub App | `boatraceopenapi`（App ID `4214299`） |
 
 dispatch は Durable Object `Scheduler` のアラームが 10 分刻み（UTC の 00:00, 00:10, …）で行う。
 どの回で何を起動するかは [`src/index.ts`](src/index.ts) の `workflowsForSlot` で定義している。
@@ -50,7 +50,7 @@ dispatch は Durable Object `Scheduler` のアラームが 10 分刻み（UTC �
 締切 35 分前〜125 分後のレース（`closed_at`）がある回だけ dispatch する（`hasRaceNear`）。
 結果の有無までは見ないので、最後の締切から 125 分後（ナイター開催の日はおよそ 1:00）までは dispatch が続く。
 
-- 10 月の実績では、最初の締切は 8:35、最後の締切は 20:45〜22:54（ナイター開催の 19・20・24 場）。
+- 10月の実績では、最初の締切は 8:35、最後の締切は 20:45〜22:54（ナイター開催の 19・20・24 場）。
   3 分間隔だった当時、およそ 23:25〜8:05 は何もしない run を起動していた（1 日 480 回のうち約 175 回）
 - PHP 側（`Synchronizer` の `MINUTES_BEFORE_CLOSE` / `MINUTES_AFTER_CLOSE_UNTIL_RESULT`）より両側 5 分ずつ広いのは、run の起動が dispatch の 1〜2 分後になることと、Pages のキャッシュ（`max-age=600`）のため
 - `closed_at` は日付込みで比べるので、日付が変わって `today.json` がまだ前日分のときは、前日の最後の締切から 125 分を過ぎれば dispatch しない。
@@ -70,7 +70,7 @@ Cron Triggers が復活しても dispatch が二重になることはない。
 
 ### 3 分間隔から 10 分間隔にした理由
 
-2026-10-28 に 3 分から 10 分に変えた。2020 年以降のデータを遡って公開する計画があり、
+2026-10-28 に 3 分から 10 分に変えた。2020年以降のデータを遡って公開する計画があり、
 公開サイズが 3.4 GiB になると Pages のデプロイ 1 回に約 160 秒かかる（検証用リポジトリで実測）。
 3 分間隔のままだと、デプロイが次の回までに終わらなくなる。
 
@@ -78,7 +78,7 @@ Cron Triggers が復活しても dispatch が二重になることはない。
   結果は 8〜31 分後に入っている。10 分間隔でも、締切から 30 分を過ぎてから最低 1 回は取り直せるようにした
 - さらに、結果（3 連単の払戻）がまだ入っていないレースは締切 120 分後まで取り直し続ける。
   水面状況などで発走が遅れても `closed_at` が更新されないことがあり、2026-10-01〜27 の 4,200 レースのうち
-  約 15 レースは、締切後 30 分以上 3 分おきに取り直しても結果が入らず、深夜 0 時の `sync.yml` まで反映されていなかった
+  約 15 レースは、締切後 30 分以上 3 分間隔に取り直しても結果が入らず、深夜 0 時の `sync.yml` まで反映されていなかった
 - 締切前後で取り直す回数は、1 レースあたり約 20 回から約 7 回に減る
 
 ---
@@ -87,13 +87,13 @@ Cron Triggers が復活しても dispatch が二重になることはない。
 
 Fine-grained PAT ではなく GitHub App を使っている。理由は以下のとおり。
 
-- PAT は最大1年で失効し、手動ローテーションが必要になる
+- PAT は最大 1 年で失効し、手動ローテーションが必要になる
 - リポジトリ側のワークフロー（[`sync.yml`](../.github/workflows/sync.yml) / [`sync-upcoming.yml`](../.github/workflows/sync-upcoming.yml)）が
   すでに `actions/create-github-app-token` で同じ App を使っており、認証情報を一本化できる
 
-Worker は起動のたびに次の3ステップを実行する（[`src/index.ts`](src/index.ts)）。
+Worker は起動のたびに次の 3 ステップを実行する（[`src/index.ts`](src/index.ts)）。
 
-1. App の秘密鍵で RS256 の JWT を生成（有効期限は発行から540秒、時計ずれ対策で `iat` を60秒巻き戻す）
+1. App の秘密鍵で RS256 の JWT を生成（有効期限は発行から 540 秒、時計ずれ対策で `iat` を 60 秒巻き戻す）
 2. `GET /repos/{owner}/{repo}/installation` で installation ID を解決
 3. `POST /app/installations/{id}/access_tokens` で Installation Access Token を取得し、dispatch に使用
 
@@ -204,7 +204,7 @@ npx wrangler deployments list
 npx wrangler dev
 ```
 
-起動時に `.dev.vars` の3変数がバインドされていることがログに出る。
+起動時に `.dev.vars` の 3 変数がバインドされていることがログに出る。
 
 `fetch` ハンドラの疎通確認（`X-Trigger-Secret` が必要。未指定なら 401 が返る＝Worker は正常起動）:
 
@@ -226,7 +226,7 @@ curl "http://localhost:8787/cdn-cgi/handler/scheduled?cron=*/10+*+*+*+*"
 
 `cron` パラメータは `WATCHDOG_CRON` と一致させること。一致しないと `Unknown cron` になる。
 
-**注意: `wrangler dev` 中は 10 分ごとにアラームが発火し、実際に GitHub Actions を起動する。** 一度 `/scheduler` を叩くか見張りを動かすとアラームが回り続けるので、確認が済んだら `wrangler dev` を終了すること。
+**注意: `wrangler dev` 中は 10 分間隔にアラームが発火し、実際に GitHub Actions を起動する。** 一度 `/scheduler` を叩くか見張りを動かすとアラームが回り続けるので、確認が済んだら `wrangler dev` を終了すること。
 
 ---
 
@@ -296,7 +296,7 @@ dispatch 失敗時は `console.error` にステータスとレスポンスボデ
 - 両ワークフローとも `workflow_dispatch` を宣言済み。これがないと dispatch API は 404 を返す
 - 両ワークフローの `concurrency` グループ名は `sync-${{ github.ref }}` で**共通**。
   そのため sync.yml と sync-upcoming.yml は互いにキューイングされ、
-  `cancel-in-progress: false` により「実行中1 + 待機1」に自動的に絞られる。
+  `cancel-in-progress: false` により「実行中 1 + 待機 1」に自動的に絞られる。
   Worker 発火と GitHub 純正 cron がタイミング的に重なっても二重実行にはならない
 - その代わり、**待機中の run は後から来た run に置き換えられて取り消される**。
   `sync.yml` が待機に回ると次の回の `sync-upcoming.yml` に取り消されるため（2026-10-27 15:00 に発生）、
@@ -313,11 +313,11 @@ dispatch 失敗時は `console.error` にステータスとレスポンスボデ
 | `.dev.vars` | Git に絶対コミットしない。`.gitignore` の `.dev.vars*` が唯一の防御線 |
 | 401 が返る | `fetch` ハンドラの `X-Trigger-Secret` が `BOA_TOKEN` と不一致 |
 | 403 が返る | GitHub App の Actions 権限が Read-only、または対象リポジトリに未インストール |
-| 404 が返る | ワークフローに `workflow_dispatch` がない、ファイル名の誤り、ref (`gh-pages`) の誤り |
+| 404 が返る | ワークフローに `workflow_dispatch` がない、ファイル名の誤り、ref（`gh-pages`）の誤り |
 | `Unknown cron` ログ | `wrangler.jsonc` の cron 文字列と `WATCHDOG_CRON` が不一致 |
 | `Alarm dispatch failed` ログ | アラームからの dispatch が失敗。次の回は予約済みなので自動で再開する |
 | `today.json fetch failed` / `no closed_at found` ログ | 夜間停止の判定ができず、その回は dispatch した。続くなら `TODAY_JSON_URL` と Pages を確認 |
 | レート制限 | Installation Access Token は 5,000 req/h。10 分間隔（1 日 144 回）なら十分に余裕がある |
-| Cron Triggers 上限 | 無料枠でも利用可、1 Worker あたり最大5個。現在1個（見張り役） |
+| Cron Triggers 上限 | 無料枠でも利用可、1 Worker あたり最大 5 個。現在 1 個（見張り役） |
 | Durable Objects | 無料枠では SQLite バックエンド必須（`new_sqlite_classes`）。アラーム起動は 1 日 10 万リクエストの枠に数えられる（1 日約 144 回） |
 | workers.dev サブドメイン | `/scheduler` での起動・確認と手動 dispatch のため有効にしている。どのパスも `X-Trigger-Secret` 必須 |

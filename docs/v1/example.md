@@ -1,4 +1,4 @@
-# サンプルコード (v1)
+# サンプルコード（v1）
 
 実際のエンドポイントからデータを取得してパースするサンプルコードです。
 
@@ -332,7 +332,7 @@ for stadium_number, stadium in stadiums.items():
 
 ---
 
-## JavaScript (Node.js / ブラウザ)
+## JavaScript（Node.js / ブラウザ）
 
 ```javascript
 const date = '20260501';
