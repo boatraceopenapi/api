@@ -13,12 +13,6 @@ on:
         type: number
         default: 0
 
-# デプロイは公開サイズに比例して長くなる（3.4 GiB で約 160 秒）。実行中を取り消すと、
-# 起動間隔より長くなったときに 1 回も終わらなくなるので、最後まで終えてから最新の 1 件を流す
-concurrency:
-  group: pages
-  cancel-in-progress: false
-
 permissions:
   pages: write
   id-token: write
@@ -28,6 +22,12 @@ jobs:
     name: Deploy to pages (Ubuntu 24.04)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    # デプロイは公開サイズに比例して長くなる（3.4 GiB で約 160 秒）。実行中を取り消すと、
+    # 起動間隔より長くなったときに 1 回も終わらなくなるので、最後まで終えてから最新の 1 件を流す。
+    # ワークフロー全体ではなくこのジョブにだけかけて、retry ジョブの待ち時間が次のデプロイを止めないようにする
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -52,25 +52,40 @@ jobs:
         uses: actions/deploy-pages@v5
 
   # 失敗の大半は GitHub 側の一時的なエラー（Fetching artifact metadata failed など）で、デプロイを作る前に止まっている。
-  # 次の push を待つと、夜間は朝まで公開中の today.json が古いまま残り、gha-dispatcher が Sync Upcoming を起動しない
-  # （2026-11-22 0:17 に発生）。少し待ってから新しい run で最新の gh-pages をデプロイし直す。やり直しは 3 回まで
+  # 日中は約 10 分ごとの push が新しいデータでデプロイし直すので、待っているあいだに新しい run が起動していれば何もしない。
+  # 最終レースの後や 0 時の同期の後のように次の push が来ない時間帯だけ、最新の gh-pages を新しい run でデプロイし直す
+  # （2026-11-22 0:17 は朝まで、2026-11-24 21:01 は 3 回のやり直しを使い切って 0:18 まで、公開中のデータが古いまま残った）。
+  # 待ち時間は 3, 6, 12, 24, 30, 30 分と伸ばし、6 回（約 1 時間 45 分）で諦める
   retry:
     name: Retry failed deploy (Ubuntu 24.04)
     needs: deploy-pages
-    if: ${{ failure() && (inputs.retry || 0) < 3 }}
+    if: ${{ failure() && (inputs.retry || 0) < 6 }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 40
     permissions:
       actions: write
     env:
       GH_TOKEN: ${{ github.token }}
+      MAX_RETRIES: 6
       RETRY: ${{ inputs.retry || 0 }}
     steps:
       - name: Wait before retrying
-        run: sleep 180
-
-      - name: Dispatch Deploy Pages again
         run: |
+          minutes=$((3 * (1 << RETRY)))
+          [ "${minutes}" -gt 30 ] && minutes=30
+          echo "waiting ${minutes} minutes before retry $((RETRY + 1))/${MAX_RETRIES}"
+          sleep $((minutes * 60))
+
+      - name: Dispatch Deploy Pages again unless a newer run has started
+        run: |
+          newer=$(gh run list --repo "${{ github.repository }}" --workflow deploy-pages.yml --limit 50 \
+            --json databaseId --jq "[.[] | select(.databaseId > ${{ github.run_id }})] | length")
+
+          if [ "${newer}" -gt 0 ]; then
+            echo "a newer Deploy Pages run has started (${newer}); leaving the retry to it"
+            exit 0
+          fi
+
           next=$((RETRY + 1))
-          echo "::warning::deploy failed; dispatching retry ${next}/3"
+          echo "::warning::deploy failed; dispatching retry ${next}/${MAX_RETRIES}"
           gh workflow run deploy-pages.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}" -f retry="${next}"
