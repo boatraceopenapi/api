@@ -12,6 +12,9 @@ use Carbon\CarbonImmutable as Carbon;
  *
  * 使い方: php bin/sync-range.php START_DATE END_DATE [VERSION]
  *
+ * 環境変数 MIN_CALL_INTERVAL_SECONDS で、公式サイトへのリクエスト間隔の下限（秒、1 以上。既定 1）を指定できる。
+ * 長時間かけて遡るときに、頻度を下げて回すためのもの。
+ *
  * 失敗した日は間隔を空けて再試行し、それでも失敗した日は飛ばして最後に一覧を出す（終了コード 1）。
  * 途中で止めたときは、続きから再開するコマンドを出す。夜間だけ遡るときは bin/backfill.sh から呼ぶ。
  */
@@ -47,6 +50,19 @@ if ($version === '') {
     $version = 'v1';
 }
 
+$minCallIntervalSource = getenv('MIN_CALL_INTERVAL_SECONDS');
+$minCallIntervalSeconds = 1.0;
+
+if (is_string($minCallIntervalSource) && $minCallIntervalSource !== '') {
+    if (!is_numeric($minCallIntervalSource) || (float) $minCallIntervalSource < 1.0) {
+        echo "MIN_CALL_INTERVAL_SECONDS は 1 以上の数で指定してください（{$minCallIntervalSource} が指定されました）。" . PHP_EOL;
+
+        exit(1);
+    }
+
+    $minCallIntervalSeconds = (float) $minCallIntervalSource;
+}
+
 if ($startDate->gt($endDate)) {
     echo "開始日 ({$startDate->toDateString()}) が終了日 ({$endDate->toDateString()}) より後です。" . PHP_EOL;
 
@@ -64,11 +80,11 @@ $completedCount = 0;
 $failedDates = [];
 $startedAt = microtime(true);
 
-echo "対象期間: {$startDate->toDateString()} 〜 {$endDate->toDateString()}（{$total}日 / {$version}）" . PHP_EOL;
+echo "対象期間: {$startDate->toDateString()} 〜 {$endDate->toDateString()}（{$total}日 / {$version} / 間隔 {$minCallIntervalSeconds} 秒）" . PHP_EOL;
 echo PHP_EOL;
 
 register_shutdown_function(
-    static function () use (&$completedCount, $dates, $total, $endDate, $version): void {
+    static function () use (&$completedCount, $dates, $total, $endDate, $version, $minCallIntervalSource): void {
         if ($completedCount >= $total) {
             return;
         }
@@ -76,7 +92,11 @@ register_shutdown_function(
         $resumeDate = $dates[$completedCount]->toDateString();
 
         echo PHP_EOL . '中断しました。再開するには:' . PHP_EOL;
-        echo "  php bin/sync-range.php {$resumeDate} {$endDate->toDateString()} {$version}" . PHP_EOL;
+        $env = is_string($minCallIntervalSource) && $minCallIntervalSource !== ''
+            ? "MIN_CALL_INTERVAL_SECONDS={$minCallIntervalSource} "
+            : '';
+
+        echo "  {$env}php bin/sync-range.php {$resumeDate} {$endDate->toDateString()} {$version}" . PHP_EOL;
     }
 );
 
@@ -104,7 +124,7 @@ foreach ($dates as $index => $date) {
 
     for ($attempt = 1; $attempt <= MAX_ATTEMPTS && !$succeeded; $attempt++) {
         try {
-            Synchronizer::sync($date, $version);
+            Synchronizer::sync($date, $version, $minCallIntervalSeconds);
 
             $succeeded = true;
         } catch (Throwable $exception) {

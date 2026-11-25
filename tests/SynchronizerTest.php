@@ -8,12 +8,27 @@ use BOA\API\Synchronizer;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\BrowserKit\Response;
+use ValueError;
 
 /**
  * @author shimomo
  */
 final class SynchronizerTest extends TestCase
 {
+    /**
+     * 取得を始める前に弾くので、通信もファイルの書き込みも起きない
+     *
+     * @return void
+     */
+    #[Test]
+    public function syncRejectsIntervalShorterThanOneSecond(): void
+    {
+        $this->expectException(ValueError::class);
+        $this->expectExceptionMessage('$minCallIntervalSeconds must be 1 or greater, 0.5 given.');
+
+        Synchronizer::sync('2026-11-25', 'v1', 0.5);
+    }
+
     /**
      * @return void
      */

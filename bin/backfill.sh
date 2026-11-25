@@ -15,6 +15,8 @@
 #     LIVE_WINDOW_START  日中帯の開始（既定 07:15）
 #     LIVE_WINDOW_END    日中帯の終了（既定 23:15）
 #     PUSH               1（既定）なら月ごとのコミットのあと push する
+#     MIN_CALL_INTERVAL_SECONDS  公式サイトへのリクエスト間隔の下限（秒、1 以上。既定 1）。
+#                        そのまま bin/sync-range.php に渡る。日中帯も回すとき（AVOID_LIVE_WINDOW=0）に頻度を下げる用
 #     PHP                php のパス（既定 php）
 #
 # ⚠️ 開発用の作業ディレクトリとは別の worktree で動かすこと。月ごとに git pull --rebase する。

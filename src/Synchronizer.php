@@ -65,30 +65,46 @@ final class Synchronizer
     private const int MINUTES_AFTER_CLOSE_UNTIL_RESULT = 120;
 
     /**
+     * 公式サイトへのリクエスト間隔の下限（秒）。スクレイパーの既定は 3 秒で、1 秒より短くはできない
+     *
+     * @var float
+     */
+    private const float MIN_CALL_INTERVAL_SECONDS = 1.0;
+
+    /**
      * 指定した日の全レース（出走表・直前情報・結果）を取り直し、その日のファイルを作り直す。
      * 当日なら today.json も書き換える。0 時に前日分の確定と当日分の作成に使うほか、
      * 当日分のファイルが無いときは syncUpcoming() からも呼ばれる。
      *
      * 締切時刻（closed_at）が取れなかったレースは、取得に失敗したものとして既存のファイルのデータを残す。
-     * 全レースで取れなかったときは、取得そのものが失敗しているので保存せずに例外を投げる
+     * 全レースで取れなかったときは、取得そのものが失敗しているので保存せずに例外を投げる。
+     *
+     * $minCallIntervalSeconds は、過去分を長時間かけて取り直すとき（bin/sync-range.php）に間隔を伸ばすためのもの
      *
      * @param \DateTimeInterface|non-empty-string $date
      * @param non-empty-string $version
+     * @param float $minCallIntervalSeconds
      * @return void
      * @throws RuntimeException
+     * @throws ValueError
      */
-    public static function sync(DateTimeInterface|string $date = 'today', string $version = self::VERSION): void
-    {
+    public static function sync(
+        DateTimeInterface|string $date = 'today',
+        string $version = self::VERSION,
+        float $minCallIntervalSeconds = self::MIN_CALL_INTERVAL_SECONDS,
+    ): void {
         date_default_timezone_set(self::TIMEZONE);
 
         self::assertSupportedVersion($version);
+        self::assertValidMinCallInterval($minCallIntervalSeconds);
 
         $date = Carbon::parse($date, self::TIMEZONE);
 
-        self::runInGroup('sync', $date, $version, static function () use ($date, $version): void {
+        self::runInGroup('sync', $date, $version, static function () use ($date, $version, $minCallIntervalSeconds): void {
             $dateYmd = $date->format('Ymd');
 
-            Scraper::setMinCallIntervalSeconds(1.0);
+            Scraper::setMinCallIntervalSeconds($minCallIntervalSeconds);
+            ActionsLogger::info("min_call_interval={$minCallIntervalSeconds}s");
 
             $program = BatchScraper::scrapeProgram($date);
             $preview = BatchScraper::scrapePreview($date);
@@ -186,7 +202,7 @@ final class Synchronizer
             $updatedCount = 0;
             $skippedCount = 0;
 
-            Scraper::setMinCallIntervalSeconds(1.0);
+            Scraper::setMinCallIntervalSeconds(self::MIN_CALL_INTERVAL_SECONDS);
 
             foreach (($payload['programs']['stadiums'] ?? []) as $stadiumNumber => $stadium) {
                 foreach (($stadium['races'] ?? []) as $raceNumber => $race) {
@@ -493,6 +509,20 @@ final class Synchronizer
     {
         if (!in_array($version, self::SUPPORTED_VERSIONS, true)) {
             throw new RuntimeException("Unsupported version: {$version}");
+        }
+    }
+
+    /**
+     * スクレイパーも 1 秒未満を弾くが、取得を始める前（ロググループを開く前）に止める
+     *
+     * @param float $seconds
+     * @return void
+     * @throws ValueError
+     */
+    private static function assertValidMinCallInterval(float $seconds): void
+    {
+        if ($seconds < self::MIN_CALL_INTERVAL_SECONDS) {
+            throw new ValueError(sprintf('$minCallIntervalSeconds must be 1 or greater, %s given.', $seconds));
         }
     }
 
